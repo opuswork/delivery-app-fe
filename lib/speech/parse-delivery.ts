@@ -60,10 +60,17 @@ function normalizeSinoDays(text: string): string {
   });
 }
 
+/** Trailing words people say to finish a recording ("…30일 끝"). */
+const CLOSING_WORDS = /(?:^|\s)(?:끝|이상|끝입니다|이상입니다)[.!]?$/;
+
 function normalize(text: string): string {
-  return normalizeSinoDays(
-    normalizeNativeQuantities(text.replace(/\s+/g, " ").trim()),
-  );
+  const cleaned = text
+    .replace(/[,，。]|\.(?=\s|$)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(CLOSING_WORDS, "")
+    .trim();
+  return normalizeSinoDays(normalizeNativeQuantities(cleaned));
 }
 
 function lastMatch(text: string, pattern: RegExp): RegExpExecArray | null {
@@ -143,8 +150,8 @@ function fromParts(parts: string[], today: Date): ParsedDelivery {
   const date = extractDate(datePart, today);
   const quantity = extractQuantity(quantityPart);
   return {
-    company_name: parts[0].trim(),
-    product_name: parts.slice(1, -2).join(" ").trim(),
+    company_name: normalize(parts[0]),
+    product_name: normalize(parts.slice(1, -2).join(" ")),
     product_quantity: quantity.value || quantityPart.replace(/\s+/g, ""),
     delivery_date: date.value,
   };

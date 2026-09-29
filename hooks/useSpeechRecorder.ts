@@ -63,6 +63,8 @@ export function useSpeechRecorder({ onComplete }: Options) {
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const segmentsRef = useRef<string[]>([]);
+  /** Final text of the current recognition session; committed once on `end`. */
+  const sessionTextRef = useRef("");
   const statusRef = useRef<RecordingStatus>("idle");
   const stopTimerRef = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
@@ -81,8 +83,17 @@ export function useSpeechRecorder({ onComplete }: Options) {
     setStatus(next);
   }, []);
 
+  /** Adds the finished session's text once (Android can repeat a session's result). */
+  const commitSession = useCallback(() => {
+    const text = sessionTextRef.current.trim();
+    sessionTextRef.current = "";
+    const segments = segmentsRef.current;
+    if (text && text !== segments[segments.length - 1]) segments.push(text);
+  }, []);
+
   const finalize = useCallback(() => {
     if (statusRef.current !== "processing") return;
+    commitSession();
     if (stopTimerRef.current !== null) window.clearTimeout(stopTimerRef.current);
     stopTimerRef.current = null;
     const segments = [...segmentsRef.current];
@@ -93,23 +104,36 @@ export function useSpeechRecorder({ onComplete }: Options) {
     });
     setInterim("");
     transition("idle");
-  }, [readTimer, transition]);
+  }, [commitSession, readTimer, transition]);
 
+  /**
+   * Rebuilds the session text from the full result list on every event instead
+   * of appending: Android Chrome re-sends growing snapshots of the same speech,
+   * which previously produced "신선유통 신선유통 신선유통 ...".
+   */
   const handleResult = useCallback((event: SpeechRecognitionEventLike) => {
+    let finalText = "";
     let pending = "";
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+    for (let i = 0; i < event.results.length; i += 1) {
       const result = event.results[i];
       const text = result[0]?.transcript.trim() ?? "";
       if (!text) continue;
-      if (result.isFinal) segmentsRef.current.push(text);
-      else pending += `${text} `;
+      // Snapshots are cumulative, so the longest final result is the whole utterance.
+      if (result.isFinal) {
+        if (text.length >= finalText.length) finalText = text;
+      } else {
+        pending = text;
+      }
     }
-    setInterim(pending.trim());
+    if (finalText) sessionTextRef.current = finalText;
+    const live = [...segmentsRef.current, pending || sessionTextRef.current];
+    setInterim(live.filter(Boolean).join(" "));
   }, []);
 
   const handleEnd = useCallback(() => {
     const current = statusRef.current;
-    // Browsers end continuous sessions after silence; keep listening while recording.
+    if (current !== "processing") commitSession();
+    // One utterance per session: keep listening while still recording.
     if (current === "recording") {
       try {
         recognitionRef.current?.start();
@@ -119,7 +143,7 @@ export function useSpeechRecorder({ onComplete }: Options) {
       return;
     }
     if (current === "processing") finalize();
-  }, [finalize, transition]);
+  }, [commitSession, finalize, transition]);
 
   const handleError = useCallback(
     (event: SpeechRecognitionErrorEventLike) => {
@@ -137,7 +161,8 @@ export function useSpeechRecorder({ onComplete }: Options) {
     if (!Ctor) return null;
     const recognition = new Ctor();
     recognition.lang = SPEECH_LANG;
-    recognition.continuous = true;
+    // Single-utterance sessions avoid Android Chrome's duplicated continuous results.
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
@@ -148,6 +173,7 @@ export function useSpeechRecorder({ onComplete }: Options) {
     const recognition = ensureRecognition();
     if (!recognition) return;
     segmentsRef.current = [];
+    sessionTextRef.current = "";
     resetTimer();
     setInterim("");
     setError(null);
