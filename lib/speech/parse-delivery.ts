@@ -60,6 +60,28 @@ function normalizeSinoDays(text: string): string {
   });
 }
 
+/** Spoken month names → digits: "시월 삼일" → "10월 3일". Longest names first. */
+const MONTH_NAMES: [string, number][] = [
+  ["십이월", 12], ["십일월", 11], ["시월", 10], ["구월", 9], ["팔월", 8],
+  ["칠월", 7], ["유월", 6], ["오월", 5], ["사월", 4], ["삼월", 3], ["이월", 2], ["일월", 1],
+];
+const MONTH_NAME = new RegExp(
+  String.raw`(^|\s)(${MONTH_NAMES.map(([name]) => name).join("|")})(?=$|\s|\d|[일이삼사오육칠팔구십])`,
+  "g",
+);
+
+function normalizeMonthNames(text: string): string {
+  const months = new Map(MONTH_NAMES);
+  // Trailing space lets "시월삼일" become "10월 삼일" for the day conversion.
+  return text.replace(
+    MONTH_NAME,
+    (_, lead: string, name: string) => `${lead}${months.get(name)}월 `,
+  );
+}
+
+/** "10개10월 3일" → "10개 10월 3일" (recognition sometimes drops the space). */
+const UNIT_BEFORE_DIGIT = new RegExp(String.raw`(\d(?:${COUNT_UNITS}))(?=\d)`, "g");
+
 /** Trailing words people say to finish a recording ("…30일 끝"). */
 const CLOSING_WORDS = /(?:^|\s)(?:끝|이상|끝입니다|이상입니다)[.!]?$/;
 
@@ -69,8 +91,13 @@ function normalize(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(CLOSING_WORDS, "")
+    .replace(UNIT_BEFORE_DIGIT, "$1 ")
     .trim();
-  return normalizeSinoDays(normalizeNativeQuantities(cleaned));
+  return normalizeSinoDays(
+    normalizeMonthNames(normalizeNativeQuantities(cleaned)),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function lastMatch(text: string, pattern: RegExp): RegExpExecArray | null {
@@ -144,37 +171,45 @@ function remove(text: string, match: RegExpExecArray): string {
     .trim();
 }
 
-function fromParts(parts: string[], today: Date): ParsedDelivery {
-  const datePart = normalize(parts[parts.length - 1]);
-  const quantityPart = normalize(parts[parts.length - 2]);
-  const date = extractDate(datePart, today);
-  const quantity = extractQuantity(quantityPart);
-  return {
-    company_name: normalize(parts[0]),
-    product_name: normalize(parts.slice(1, -2).join(" ")),
-    product_quantity: quantity.value || quantityPart.replace(/\s+/g, ""),
-    delivery_date: date.value,
-  };
+/**
+ * 납품처 vs 상품명: when the speaker paused after the company, the first
+ * recognised piece is the company name (may be several words, "우리 식당").
+ * Otherwise the first word is used.
+ */
+function splitCompanyProduct(
+  rest: string,
+  parts: readonly string[],
+): { company: string; product: string } {
+  const first = parts[0] ?? "";
+  if (parts.length >= 2 && first && rest.startsWith(`${first} `)) {
+    return { company: first, product: rest.slice(first.length).trim() };
+  }
+  const [company = "", ...product] = rest.split(" ").filter(Boolean);
+  return { company, product: product.join(" ") };
 }
 
+/**
+ * Date and quantity are searched in the whole sentence, so the result does
+ * not depend on where the speaker paused (the order is 납품처 → 상품명 →
+ * 수량 → 납품일, so the last date and last count are taken).
+ */
 export function parseDeliveryTranscript(
   segments: readonly string[],
   now: Date = new Date(),
 ): ParsedDelivery {
   const today = startOfDay(now);
-  const cleaned = segments.map((s) => s.trim()).filter(Boolean);
-  const joined = cleaned.join(" ");
+  const joined = segments.map((s) => s.trim()).filter(Boolean).join(" ");
+  const arrowParts = joined.split(ARROW);
+  const parts = (arrowParts.length > 1 ? arrowParts : segments)
+    .map(normalize)
+    .filter(Boolean);
 
-  const arrowParts = joined.split(ARROW).filter(Boolean);
-  if (arrowParts.length >= 4) return fromParts(arrowParts, today);
-  if (cleaned.length === 4) return fromParts(cleaned, today);
-
-  const date = extractDate(normalize(joined), today);
+  const date = extractDate(parts.join(" "), today);
   const quantity = extractQuantity(date.rest);
-  const [company = "", ...product] = quantity.rest.split(" ").filter(Boolean);
+  const { company, product } = splitCompanyProduct(quantity.rest, parts);
   return {
     company_name: company,
-    product_name: product.join(" "),
+    product_name: product,
     product_quantity: quantity.value,
     delivery_date: date.value,
   };
