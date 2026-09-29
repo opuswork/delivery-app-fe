@@ -96,7 +96,7 @@ export function useSpeechRecorder({ onComplete }: Options) {
   const handleResult = useCallback((event: SpeechRecognitionEventLike) => {
     const { final, pending } = readSessionResults(event);
     if (final) sessionTextRef.current = final;
-    const live = [...segmentsRef.current, pending || sessionTextRef.current];
+    const live = [...segmentsRef.current, sessionTextRef.current, pending];
     setInterim(live.filter(Boolean).join(" "));
   }, []);
 

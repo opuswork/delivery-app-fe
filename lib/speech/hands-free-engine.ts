@@ -31,7 +31,8 @@ const SAVE_AFTER_SILENCE_MS = 1500;
 /** Silence after an incomplete delivery before asking again. */
 const GIVE_UP_AFTER_SILENCE_MS = 5000;
 const MAX_ATTEMPTS = 2;
-const RESTART_DELAY_MS = 150;
+/** Short pause before restarting an ended session (lets the engine settle). */
+const RESTART_DELAY_MS = 30;
 const CLOSING_WORD = /(?:^|\s)(?:끝|이상)(?:입니다)?[.!]?$/;
 
 export interface HandsFreeCallbacks {
@@ -142,16 +143,17 @@ export class HandsFreeEngine {
 
     const stripWake = (text: string) => findWakeWord(text)?.rest ?? text;
     if (final) this.sessionText = stripWake(final);
-    const live = [...this.segments, stripWake(pending) || this.sessionText];
+    const live = [...this.segments, this.sessionText, stripWake(pending)];
     this.callbacks.onLiveText(live.filter(Boolean).join(" "));
     this.scheduleEvaluation();
   }
 
   private async onWake(rest: string): Promise<void> {
     if (rest) {
-      // Delivery spoken in the same breath: skip the prompt.
-      this.segments = [rest];
-      this.sessionText = "";
+      // Delivery spoken in the same breath: skip the prompt. The session keeps
+      // running, so its (growing) text stays the session text, not a segment.
+      this.segments = [];
+      this.sessionText = rest;
       this.setStatus("dictating");
       this.callbacks.onLiveText(rest);
       this.scheduleEvaluation();
