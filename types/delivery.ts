@@ -17,5 +17,19 @@ export interface CreateDeliveryBatchRequest {
   items: Pick<DeliveryRecord, "product_name" | "product_quantity">[];
 }
 
+/**
+ * Edits one company block: rows with `delivery_number` are updated, rows
+ * without are created, rows of `delivery_numbers` left out are deleted.
+ * An empty `items` list deletes the whole block.
+ */
+export interface UpdateDeliveryGroupRequest {
+  delivery_numbers: number[];
+  company_name: string;
+  delivery_date: string;
+  items: (Pick<DeliveryRecord, "product_name" | "product_quantity"> & {
+    delivery_number?: number;
+  })[];
+}
+
 /** Delivery records keyed by their yyyy-mm-dd delivery date. */
 export type DeliveriesByDate = ReadonlyMap<string, DeliveryRecord[]>;

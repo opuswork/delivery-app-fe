@@ -41,12 +41,35 @@ export function DeliveryDashboard() {
   );
 
   const openDraft = useCallback(
-    (values: DeliveryFormValues, transcript: string | null) => {
+    (
+      values: DeliveryFormValues,
+      transcript: string | null,
+      editDeliveryNumbers?: number[],
+    ) => {
       draftSeq.current += 1;
-      setDraft({ id: draftSeq.current, values, transcript });
+      setDraft({ id: draftSeq.current, values, transcript, editDeliveryNumbers });
     },
     [],
   );
+
+  /** Opens the modal prefilled with one saved company block of the day. */
+  const handleEdit = (records: DeliveryRecord[]) => {
+    const [first] = records;
+    if (!first) return;
+    openDraft(
+      {
+        company_name: first.company_name,
+        delivery_date: first.delivery_date,
+        items: records.map(({ delivery_number, product_name, product_quantity }) => ({
+          delivery_number,
+          product_name,
+          product_quantity,
+        })),
+      },
+      null,
+      records.map((record) => record.delivery_number),
+    );
+  };
 
   const handleRecorded = useCallback(
     (result: RecordingResult) => {
@@ -88,8 +111,18 @@ export function DeliveryDashboard() {
 
   const handleSaved = (records: DeliveryRecord[]) => {
     setDraft(null);
-    toast.success(`배달 ${records.length}건이 저장되었습니다.`);
+    toast.success(
+      draft?.editDeliveryNumbers
+        ? "배달이 수정되었습니다."
+        : `배달 ${records.length}건이 저장되었습니다.`,
+    );
     focusSavedDelivery(records);
+  };
+
+  const handleDeleted = () => {
+    setDraft(null);
+    toast.success("배달이 삭제되었습니다.");
+    deliveries.refresh();
   };
 
   const handleAutoSaved = (records: DeliveryRecord[]) => {
@@ -119,12 +152,14 @@ export function DeliveryDashboard() {
         records={deliveries.byDate.get(selectedKey) ?? []}
         loading={deliveries.loading}
         error={deliveries.error}
+        onEdit={handleEdit}
       />
       <AccountFooter />
       <DeliveryConfirmDialog
         draft={draft}
         onClose={() => setDraft(null)}
         onSaved={handleSaved}
+        onDeleted={handleDeleted}
       />
     </MobileShell>
   );

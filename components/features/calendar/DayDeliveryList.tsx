@@ -1,3 +1,6 @@
+import { PencilIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -25,10 +28,18 @@ interface DayDeliveryListProps {
   records: readonly DeliveryRecord[];
   loading: boolean;
   error: string | null;
+  /** Opens the edit modal for one company block of this day. */
+  onEdit: (records: DeliveryRecord[]) => void;
 }
 
 /** The recorded deliveries (as text) for the selected calendar day. */
-export function DayDeliveryList({ dateKey, records, loading, error }: DayDeliveryListProps) {
+export function DayDeliveryList({
+  dateKey,
+  records,
+  loading,
+  error,
+  onEdit,
+}: DayDeliveryListProps) {
   return (
     <Card className="rounded-3xl bg-white shadow-sm ring-0">
       <CardHeader className="flex items-center justify-between">
@@ -47,7 +58,18 @@ export function DayDeliveryList({ dateKey, records, loading, error }: DayDeliver
             {groupByCompany(records).map((group, index) => (
               <li key={group.company}>
                 {index > 0 ? <Separator className="my-2" /> : null}
-                <p className="text-base font-bold text-slate-800">{group.company}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-base font-bold text-slate-800">{group.company}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`${group.company} 수정`}
+                    onClick={() => onEdit(group.records)}
+                    className="text-brand-violet hover:bg-brand-lavender"
+                  >
+                    <PencilIcon /> 수정
+                  </Button>
+                </div>
                 <ul className="flex flex-col gap-0.5">
                   {group.records.map((record) => (
                     <li key={record.delivery_number} className="text-sm text-slate-600">
