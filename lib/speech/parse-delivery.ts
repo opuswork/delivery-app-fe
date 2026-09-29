@@ -171,19 +171,45 @@ function remove(text: string, match: RegExpExecArray): string {
     .trim();
 }
 
+/** Splits `text` after its first `count` non-space characters. */
+function splitAfterLetters(text: string, count: number): [string, string] {
+  let seen = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== " ") seen += 1;
+    if (seen === count) return [text.slice(0, i + 1), text.slice(i + 1)];
+  }
+  return [text, ""];
+}
+
 /**
- * 납품처 vs 상품명: when the speaker paused after the company, the first
- * recognised piece is the company name (may be several words, "우리 식당").
- * Otherwise the first word is used.
+ * 납품처 vs 상품명. Pause positions are not used: people pause inside names
+ * ("신선유통 깔끔한 … 국간장"). Order of preference:
+ * 1. explicit "->" separators,
+ * 2. a company name used before (longest match, spaces ignored: "우리식당" = "우리 식당"),
+ * 3. the first word.
  */
 function splitCompanyProduct(
   rest: string,
-  parts: readonly string[],
+  arrowParts: readonly string[],
+  knownCompanies: readonly string[],
 ): { company: string; product: string } {
-  const first = parts[0] ?? "";
-  if (parts.length >= 2 && first && rest.startsWith(`${first} `)) {
-    return { company: first, product: rest.slice(first.length).trim() };
+  if (arrowParts.length > 1 && rest.startsWith(`${arrowParts[0]} `)) {
+    return { company: arrowParts[0], product: rest.slice(arrowParts[0].length).trim() };
   }
+
+  const compactRest = rest.replace(/\s/g, "");
+  const known = knownCompanies
+    .map((name) => ({ name: name.trim(), compact: name.replace(/\s/g, "") }))
+    .filter(({ compact }) => compact && compactRest.startsWith(compact))
+    .sort((a, b) => b.compact.length - a.compact.length)[0];
+  if (known) {
+    const [, product] = splitAfterLetters(rest, known.compact.length);
+    // Whole words only: a saved "하나" must not split "하나마트".
+    if (product.startsWith(" ") && product.trim()) {
+      return { company: known.name, product: product.trim() };
+    }
+  }
+
   const [company = "", ...product] = rest.split(" ").filter(Boolean);
   return { company, product: product.join(" ") };
 }
@@ -192,21 +218,26 @@ function splitCompanyProduct(
  * Date and quantity are searched in the whole sentence, so the result does
  * not depend on where the speaker paused (the order is 납품처 → 상품명 →
  * 수량 → 납품일, so the last date and last count are taken).
+ *
+ * @param knownCompanies company names from earlier deliveries, used to keep
+ *   multi-word names ("우리 식당") together
  */
 export function parseDeliveryTranscript(
   segments: readonly string[],
   now: Date = new Date(),
+  knownCompanies: readonly string[] = [],
 ): ParsedDelivery {
   const today = startOfDay(now);
   const joined = segments.map((s) => s.trim()).filter(Boolean).join(" ");
-  const arrowParts = joined.split(ARROW);
-  const parts = (arrowParts.length > 1 ? arrowParts : segments)
-    .map(normalize)
-    .filter(Boolean);
+  const arrowParts = joined.split(ARROW).map(normalize).filter(Boolean);
 
-  const date = extractDate(parts.join(" "), today);
+  const date = extractDate(normalize(joined.split(ARROW).join(" ")), today);
   const quantity = extractQuantity(date.rest);
-  const { company, product } = splitCompanyProduct(quantity.rest, parts);
+  const { company, product } = splitCompanyProduct(
+    quantity.rest,
+    arrowParts,
+    knownCompanies,
+  );
   return {
     company_name: company,
     product_name: product,

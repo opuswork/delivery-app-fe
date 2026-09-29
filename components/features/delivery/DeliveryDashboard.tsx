@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DayDeliveryList } from "@/components/features/calendar/DayDeliveryList";
@@ -35,6 +35,10 @@ export function DeliveryDashboard() {
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
   const selectedKey = toDateKey(selectedDate);
+  const knownCompanies = useMemo(
+    () => [...new Set([...deliveries.byDate.values()].flat().map((r) => r.company_name))],
+    [deliveries.byDate],
+  );
 
   const openDraft = useCallback(
     (values: DeliveryFormValues, transcript: string | null) => {
@@ -50,9 +54,12 @@ export function DeliveryDashboard() {
         toast.info("인식된 음성이 없습니다. 다시 녹음해 주세요.");
         return;
       }
-      openDraft(parseDeliveryTranscript(result.segments), result.transcript);
+      openDraft(
+        parseDeliveryTranscript(result.segments, new Date(), knownCompanies),
+        result.transcript,
+      );
     },
-    [openDraft],
+    [openDraft, knownCompanies],
   );
 
   const handleManualEntry = () =>
@@ -92,6 +99,7 @@ export function DeliveryDashboard() {
         onRecorded={handleRecorded}
         onManualEntry={handleManualEntry}
         onAutoSaved={handleAutoSaved}
+        knownCompanies={knownCompanies}
       />
       <DeliveryCalendar
         month={month}
