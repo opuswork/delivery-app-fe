@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { createDelivery } from "@/lib/api/deliveries";
+import { createDeliveryBatch } from "@/lib/api/deliveries";
 import { HandsFreeEngine, type HandsFreeStatus } from "@/lib/speech/hands-free-engine";
 import { getRecognitionConstructor } from "@/lib/speech/recognition";
 import { isSpeechSynthesisSupported, primeSpeech } from "@/lib/speech/tts";
@@ -11,7 +11,7 @@ import type { DeliveryRecord } from "@/types/delivery";
 const noopSubscribe = () => () => {};
 
 interface Options {
-  onSaved: (record: DeliveryRecord) => void;
+  onSaved: (records: DeliveryRecord[]) => void;
   knownCompanies: readonly string[];
 }
 
@@ -42,7 +42,7 @@ export function useHandsFreeAssistant({ onSaved, knownCompanies }: Options) {
       onStatus: setStatus,
       onLiveText: setLiveText,
       onError: setError,
-      save: async (values) => onSavedRef.current(await createDelivery(values)),
+      save: async (values) => onSavedRef.current(await createDeliveryBatch(values)),
       knownCompanies: () => knownCompaniesRef.current,
     });
     if (!engineRef.current.start()) {

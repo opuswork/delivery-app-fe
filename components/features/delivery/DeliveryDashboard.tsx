@@ -64,7 +64,11 @@ export function DeliveryDashboard() {
 
   const handleManualEntry = () =>
     openDraft(
-      { company_name: "", product_name: "", product_quantity: "", delivery_date: selectedKey },
+      {
+        company_name: "",
+        delivery_date: selectedKey,
+        items: [{ product_name: "", product_quantity: "" }],
+      },
       null,
     );
 
@@ -74,22 +78,23 @@ export function DeliveryDashboard() {
   };
 
   /** Shows the saved delivery's day and reloads that month. */
-  const focusSavedDelivery = (record: DeliveryRecord) => {
+  const focusSavedDelivery = ([record]: DeliveryRecord[]) => {
+    if (!record) return;
     const savedDate = dateFromKey(record.delivery_date);
     setSelectedDate(savedDate);
     setMonth(startOfMonth(savedDate));
     deliveries.refresh();
   };
 
-  const handleSaved = (record: DeliveryRecord) => {
+  const handleSaved = (records: DeliveryRecord[]) => {
     setDraft(null);
-    toast.success("배달이 저장되었습니다.");
-    focusSavedDelivery(record);
+    toast.success(`배달 ${records.length}건이 저장되었습니다.`);
+    focusSavedDelivery(records);
   };
 
-  const handleAutoSaved = (record: DeliveryRecord) => {
-    toast.success(`음성으로 저장됨: ${record.company_name}`);
-    focusSavedDelivery(record);
+  const handleAutoSaved = (records: DeliveryRecord[]) => {
+    toast.success(`음성으로 저장됨: ${records[0]?.company_name ?? ""} ${records.length}건`);
+    focusSavedDelivery(records);
   };
 
   return (

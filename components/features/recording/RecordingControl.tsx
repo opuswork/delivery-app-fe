@@ -14,7 +14,7 @@ interface RecordingControlProps {
   onRecorded: (result: RecordingResult) => void;
   onManualEntry: () => void;
   /** A delivery saved by hands-free mode without the confirmation dialog. */
-  onAutoSaved: (record: DeliveryRecord) => void;
+  onAutoSaved: (records: DeliveryRecord[]) => void;
   /** Company names from earlier deliveries, for parsing multi-word names. */
   knownCompanies: readonly string[];
 }

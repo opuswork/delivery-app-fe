@@ -1,5 +1,5 @@
 import { toDateKey } from "@/lib/date";
-import type { ParsedDelivery } from "@/types/recording";
+import type { ParsedDelivery, ParsedDeliveryItem } from "@/types/recording";
 
 /**
  * Turns a spoken delivery ("납품처 -> 상품명 -> 수량 -> 납품일") into fields.
@@ -214,10 +214,40 @@ function splitCompanyProduct(
   return { company, product: product.join(" ") };
 }
 
+/** Words people put between products: "국간장 3통 그리고 생명물간장 2박스". */
+const CONNECTORS = /(?:^|\s)(?:그리고|하고|또|그다음에?)(?=\s|$)/g;
+
 /**
- * Date and quantity are searched in the whole sentence, so the result does
- * not depend on where the speaker paused (the order is 납품처 → 상품명 →
- * 수량 → 납품일, so the last date and last count are taken).
+ * Splits "깔끔한국간장 3통 생명물간장 2박스" at every number+unit into
+ * items. Volumes ("1.8L", "860밀리리터") are not count units, so they stay
+ * in the product name. Text after the last quantity becomes an item without
+ * a quantity, which validation then reports instead of silently merging.
+ */
+function extractItems(text: string): ParsedDeliveryItem[] {
+  const cleaned = text.replace(CONNECTORS, " ").replace(/\s+/g, " ").trim();
+  const matches = [...cleaned.matchAll(QUANTITY)];
+  if (matches.length === 0) {
+    const single = extractQuantity(cleaned);
+    return [{ product_name: single.rest, product_quantity: single.value }];
+  }
+
+  const items: ParsedDeliveryItem[] = [];
+  let start = 0;
+  for (const match of matches) {
+    items.push({
+      product_name: cleaned.slice(start, match.index).trim(),
+      product_quantity: `${match[1]}${match[2]}`,
+    });
+    start = match.index + match[0].length;
+  }
+  const trailing = cleaned.slice(start).trim();
+  if (trailing) items.push({ product_name: trailing, product_quantity: "" });
+  return items;
+}
+
+/**
+ * The date is searched in the whole sentence, so the result does not depend
+ * on where the speaker paused. Order: 납품처 → (상품명 → 수량)+ → 납품일.
  *
  * @param knownCompanies company names from earlier deliveries, used to keep
  *   multi-word names ("우리 식당") together
@@ -232,16 +262,14 @@ export function parseDeliveryTranscript(
   const arrowParts = joined.split(ARROW).map(normalize).filter(Boolean);
 
   const date = extractDate(normalize(joined.split(ARROW).join(" ")), today);
-  const quantity = extractQuantity(date.rest);
   const { company, product } = splitCompanyProduct(
-    quantity.rest,
+    date.rest,
     arrowParts,
     knownCompanies,
   );
   return {
     company_name: company,
-    product_name: product,
-    product_quantity: quantity.value,
     delivery_date: date.value,
+    items: extractItems(product),
   };
 }

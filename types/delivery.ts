@@ -10,5 +10,12 @@ export interface DeliveryRecord {
 
 export type CreateDeliveryRequest = Omit<DeliveryRecord, "delivery_number">;
 
+/** Several products for one 납품처 and 납품일; each becomes a DeliveryRecord. */
+export interface CreateDeliveryBatchRequest {
+  company_name: string;
+  delivery_date: string;
+  items: Pick<DeliveryRecord, "product_name" | "product_quantity">[];
+}
+
 /** Delivery records keyed by their yyyy-mm-dd delivery date. */
 export type DeliveriesByDate = ReadonlyMap<string, DeliveryRecord[]>;
