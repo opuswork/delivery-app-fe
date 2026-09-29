@@ -1,0 +1,7 @@
+export function AppTitle() {
+  return (
+    <h1 className="mb-14 text-center text-[2.5rem] leading-none font-bold tracking-tight text-white">
+      음성배달앱
+    </h1>
+  );
+}
