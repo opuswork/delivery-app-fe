@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { createDelivery } from "@/lib/api/deliveries";
+import { createDeliveryBatch } from "@/lib/api/deliveries";
 import { HandsFreeEngine, type HandsFreeStatus } from "@/lib/speech/hands-free-engine";
 import { getRecognitionConstructor } from "@/lib/speech/recognition";
 import { isSpeechSynthesisSupported, primeSpeech } from "@/lib/speech/tts";
@@ -11,11 +11,12 @@ import type { DeliveryRecord } from "@/types/delivery";
 const noopSubscribe = () => () => {};
 
 interface Options {
-  onSaved: (record: DeliveryRecord) => void;
+  onSaved: (records: DeliveryRecord[]) => void;
+  knownCompanies: readonly string[];
 }
 
 /** React wrapper around HandsFreeEngine: state, screen wake lock and cleanup. */
-export function useHandsFreeAssistant({ onSaved }: Options) {
+export function useHandsFreeAssistant({ onSaved, knownCompanies }: Options) {
   const supported = useSyncExternalStore(
     noopSubscribe,
     () => getRecognitionConstructor() !== null && isSpeechSynthesisSupported(),
@@ -26,11 +27,13 @@ export function useHandsFreeAssistant({ onSaved }: Options) {
   const [error, setError] = useState<string | null>(null);
   const engineRef = useRef<HandsFreeEngine | null>(null);
   const onSavedRef = useRef(onSaved);
+  const knownCompaniesRef = useRef(knownCompanies);
   const active = status !== "off";
 
   useEffect(() => {
     onSavedRef.current = onSaved;
-  }, [onSaved]);
+    knownCompaniesRef.current = knownCompanies;
+  }, [onSaved, knownCompanies]);
 
   const enable = useCallback(() => {
     setError(null);
@@ -39,7 +42,8 @@ export function useHandsFreeAssistant({ onSaved }: Options) {
       onStatus: setStatus,
       onLiveText: setLiveText,
       onError: setError,
-      save: async (values) => onSavedRef.current(await createDelivery(values)),
+      save: async (values) => onSavedRef.current(await createDeliveryBatch(values)),
+      knownCompanies: () => knownCompaniesRef.current,
     });
     if (!engineRef.current.start()) {
       setError("이 브라우저는 음성 인식을 지원하지 않습니다.");

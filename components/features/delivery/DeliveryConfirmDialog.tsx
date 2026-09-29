@@ -21,14 +21,14 @@ export interface DeliveryDraft {
 interface DeliveryConfirmDialogProps {
   draft: DeliveryDraft | null;
   onClose: () => void;
-  onSaved: (record: DeliveryRecord) => void;
+  onSaved: (records: DeliveryRecord[]) => void;
 }
 
 /** Lets the user confirm or correct the fields extracted from speech before saving. */
 export function DeliveryConfirmDialog({ draft, onClose, onSaved }: DeliveryConfirmDialogProps) {
   return (
     <Dialog open={draft !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-h-[90dvh] max-w-sm overflow-y-auto">
         <DialogHeader>
           <DialogTitle>배달 내용 확인</DialogTitle>
           <DialogDescription>

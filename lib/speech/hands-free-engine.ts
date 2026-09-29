@@ -40,6 +40,8 @@ export interface HandsFreeCallbacks {
   onError: (message: string) => void;
   /** Persists the delivery; must throw when saving fails. */
   save: (values: DeliveryFormValues) => Promise<void>;
+  /** Company names from earlier deliveries (keeps "우리 식당" together). */
+  knownCompanies: () => readonly string[];
 }
 
 /** 을/를 depending on whether the word ends in a final consonant. */
@@ -196,7 +198,7 @@ export class HandsFreeEngine {
   private scheduleEvaluation(): void {
     if (this.silenceTimer !== null) window.clearTimeout(this.silenceTimer);
     const spoken = this.spokenSoFar();
-    const complete = checkParsedDelivery(parseDeliveryTranscript(spoken)).ok;
+    const complete = checkParsedDelivery(this.parse(spoken)).ok;
     const saidDone = CLOSING_WORD.test(spoken.join(" "));
     const delay = saidDone ? 0 : complete ? SAVE_AFTER_SILENCE_MS : GIVE_UP_AFTER_SILENCE_MS;
     this.silenceTimer = window.setTimeout(() => void this.evaluate(), delay);
@@ -209,7 +211,7 @@ export class HandsFreeEngine {
     const run = this.run;
     this.recognition?.abort();
 
-    const check = checkParsedDelivery(parseDeliveryTranscript(this.segments));
+    const check = checkParsedDelivery(this.parse(this.segments));
     if (!check.ok) {
       this.attempts += 1;
       const retry = this.attempts < MAX_ATTEMPTS;
@@ -238,6 +240,10 @@ export class HandsFreeEngine {
     this.setStatus("announcing");
     await speak(message);
     if (run === this.run) this.listenForWakeWord();
+  }
+
+  private parse(spoken: readonly string[]) {
+    return parseDeliveryTranscript(spoken, new Date(), this.callbacks.knownCompanies());
   }
 
   private clearTimers(): void {

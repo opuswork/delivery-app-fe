@@ -1,5 +1,5 @@
 import { toDateKey } from "@/lib/date";
-import type { ParsedDelivery } from "@/types/recording";
+import type { ParsedDelivery, ParsedDeliveryItem } from "@/types/recording";
 
 /**
  * Turns a spoken delivery ("납품처 -> 상품명 -> 수량 -> 납품일") into fields.
@@ -60,6 +60,28 @@ function normalizeSinoDays(text: string): string {
   });
 }
 
+/** Spoken month names → digits: "시월 삼일" → "10월 3일". Longest names first. */
+const MONTH_NAMES: [string, number][] = [
+  ["십이월", 12], ["십일월", 11], ["시월", 10], ["구월", 9], ["팔월", 8],
+  ["칠월", 7], ["유월", 6], ["오월", 5], ["사월", 4], ["삼월", 3], ["이월", 2], ["일월", 1],
+];
+const MONTH_NAME = new RegExp(
+  String.raw`(^|\s)(${MONTH_NAMES.map(([name]) => name).join("|")})(?=$|\s|\d|[일이삼사오육칠팔구십])`,
+  "g",
+);
+
+function normalizeMonthNames(text: string): string {
+  const months = new Map(MONTH_NAMES);
+  // Trailing space lets "시월삼일" become "10월 삼일" for the day conversion.
+  return text.replace(
+    MONTH_NAME,
+    (_, lead: string, name: string) => `${lead}${months.get(name)}월 `,
+  );
+}
+
+/** "10개10월 3일" → "10개 10월 3일" (recognition sometimes drops the space). */
+const UNIT_BEFORE_DIGIT = new RegExp(String.raw`(\d(?:${COUNT_UNITS}))(?=\d)`, "g");
+
 /** Trailing words people say to finish a recording ("…30일 끝"). */
 const CLOSING_WORDS = /(?:^|\s)(?:끝|이상|끝입니다|이상입니다)[.!]?$/;
 
@@ -69,8 +91,13 @@ function normalize(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(CLOSING_WORDS, "")
+    .replace(UNIT_BEFORE_DIGIT, "$1 ")
     .trim();
-  return normalizeSinoDays(normalizeNativeQuantities(cleaned));
+  return normalizeSinoDays(
+    normalizeMonthNames(normalizeNativeQuantities(cleaned)),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function lastMatch(text: string, pattern: RegExp): RegExpExecArray | null {
@@ -144,38 +171,105 @@ function remove(text: string, match: RegExpExecArray): string {
     .trim();
 }
 
-function fromParts(parts: string[], today: Date): ParsedDelivery {
-  const datePart = normalize(parts[parts.length - 1]);
-  const quantityPart = normalize(parts[parts.length - 2]);
-  const date = extractDate(datePart, today);
-  const quantity = extractQuantity(quantityPart);
-  return {
-    company_name: normalize(parts[0]),
-    product_name: normalize(parts.slice(1, -2).join(" ")),
-    product_quantity: quantity.value || quantityPart.replace(/\s+/g, ""),
-    delivery_date: date.value,
-  };
+/** Splits `text` after its first `count` non-space characters. */
+function splitAfterLetters(text: string, count: number): [string, string] {
+  let seen = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== " ") seen += 1;
+    if (seen === count) return [text.slice(0, i + 1), text.slice(i + 1)];
+  }
+  return [text, ""];
 }
 
+/**
+ * 납품처 vs 상품명. Pause positions are not used: people pause inside names
+ * ("신선유통 깔끔한 … 국간장"). Order of preference:
+ * 1. explicit "->" separators,
+ * 2. a company name used before (longest match, spaces ignored: "우리식당" = "우리 식당"),
+ * 3. the first word.
+ */
+function splitCompanyProduct(
+  rest: string,
+  arrowParts: readonly string[],
+  knownCompanies: readonly string[],
+): { company: string; product: string } {
+  if (arrowParts.length > 1 && rest.startsWith(`${arrowParts[0]} `)) {
+    return { company: arrowParts[0], product: rest.slice(arrowParts[0].length).trim() };
+  }
+
+  const compactRest = rest.replace(/\s/g, "");
+  const known = knownCompanies
+    .map((name) => ({ name: name.trim(), compact: name.replace(/\s/g, "") }))
+    .filter(({ compact }) => compact && compactRest.startsWith(compact))
+    .sort((a, b) => b.compact.length - a.compact.length)[0];
+  if (known) {
+    const [, product] = splitAfterLetters(rest, known.compact.length);
+    // Whole words only: a saved "하나" must not split "하나마트".
+    if (product.startsWith(" ") && product.trim()) {
+      return { company: known.name, product: product.trim() };
+    }
+  }
+
+  const [company = "", ...product] = rest.split(" ").filter(Boolean);
+  return { company, product: product.join(" ") };
+}
+
+/** Words people put between products: "국간장 3통 그리고 생명물간장 2박스". */
+const CONNECTORS = /(?:^|\s)(?:그리고|하고|또|그다음에?)(?=\s|$)/g;
+
+/**
+ * Splits "깔끔한국간장 3통 생명물간장 2박스" at every number+unit into
+ * items. Volumes ("1.8L", "860밀리리터") are not count units, so they stay
+ * in the product name. Text after the last quantity becomes an item without
+ * a quantity, which validation then reports instead of silently merging.
+ */
+function extractItems(text: string): ParsedDeliveryItem[] {
+  const cleaned = text.replace(CONNECTORS, " ").replace(/\s+/g, " ").trim();
+  const matches = [...cleaned.matchAll(QUANTITY)];
+  if (matches.length === 0) {
+    const single = extractQuantity(cleaned);
+    return [{ product_name: single.rest, product_quantity: single.value }];
+  }
+
+  const items: ParsedDeliveryItem[] = [];
+  let start = 0;
+  for (const match of matches) {
+    items.push({
+      product_name: cleaned.slice(start, match.index).trim(),
+      product_quantity: `${match[1]}${match[2]}`,
+    });
+    start = match.index + match[0].length;
+  }
+  const trailing = cleaned.slice(start).trim();
+  if (trailing) items.push({ product_name: trailing, product_quantity: "" });
+  return items;
+}
+
+/**
+ * The date is searched in the whole sentence, so the result does not depend
+ * on where the speaker paused. Order: 납품처 → (상품명 → 수량)+ → 납품일.
+ *
+ * @param knownCompanies company names from earlier deliveries, used to keep
+ *   multi-word names ("우리 식당") together
+ */
 export function parseDeliveryTranscript(
   segments: readonly string[],
   now: Date = new Date(),
+  knownCompanies: readonly string[] = [],
 ): ParsedDelivery {
   const today = startOfDay(now);
-  const cleaned = segments.map((s) => s.trim()).filter(Boolean);
-  const joined = cleaned.join(" ");
+  const joined = segments.map((s) => s.trim()).filter(Boolean).join(" ");
+  const arrowParts = joined.split(ARROW).map(normalize).filter(Boolean);
 
-  const arrowParts = joined.split(ARROW).filter(Boolean);
-  if (arrowParts.length >= 4) return fromParts(arrowParts, today);
-  if (cleaned.length === 4) return fromParts(cleaned, today);
-
-  const date = extractDate(normalize(joined), today);
-  const quantity = extractQuantity(date.rest);
-  const [company = "", ...product] = quantity.rest.split(" ").filter(Boolean);
+  const date = extractDate(normalize(joined.split(ARROW).join(" ")), today);
+  const { company, product } = splitCompanyProduct(
+    date.rest,
+    arrowParts,
+    knownCompanies,
+  );
   return {
     company_name: company,
-    product_name: product.join(" "),
-    product_quantity: quantity.value,
     delivery_date: date.value,
+    items: extractItems(product),
   };
 }

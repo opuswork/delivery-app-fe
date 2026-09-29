@@ -14,7 +14,9 @@ interface RecordingControlProps {
   onRecorded: (result: RecordingResult) => void;
   onManualEntry: () => void;
   /** A delivery saved by hands-free mode without the confirmation dialog. */
-  onAutoSaved: (record: DeliveryRecord) => void;
+  onAutoSaved: (records: DeliveryRecord[]) => void;
+  /** Company names from earlier deliveries, for parsing multi-word names. */
+  knownCompanies: readonly string[];
 }
 
 const UNSUPPORTED_MESSAGE =
@@ -28,9 +30,10 @@ export function RecordingControl({
   onRecorded,
   onManualEntry,
   onAutoSaved,
+  knownCompanies,
 }: RecordingControlProps) {
   const recorder = useSpeechRecorder({ onComplete: onRecorded });
-  const handsFree = useHandsFreeAssistant({ onSaved: onAutoSaved });
+  const handsFree = useHandsFreeAssistant({ onSaved: onAutoSaved, knownCompanies });
   const { status } = recorder;
   const recorderBusy = status !== "idle" && status !== "unsupported" && status !== "error";
 
