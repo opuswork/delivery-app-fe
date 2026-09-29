@@ -50,7 +50,7 @@ export function RecordingControl({ onRecorded, onManualEntry }: RecordingControl
         onPause={recorder.pause}
         onResume={recorder.resume}
       />
-      <p aria-live="polite" className="min-h-5 max-w-full truncate text-sm text-slate-500">
+      <p aria-live="polite" className="line-clamp-2 min-h-5 max-w-full text-center text-sm break-keep text-slate-500">
         {status === "paused" ? "일시정지됨" : recorder.interim}
       </p>
     </SectionFrame>
