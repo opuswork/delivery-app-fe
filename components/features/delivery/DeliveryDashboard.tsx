@@ -66,19 +66,33 @@ export function DeliveryDashboard() {
     setSelectedDate(toMonthKey(next) === toMonthKey(today) ? today : startOfMonth(next));
   };
 
-  const handleSaved = (record: DeliveryRecord) => {
-    setDraft(null);
-    toast.success("배달이 저장되었습니다.");
+  /** Shows the saved delivery's day and reloads that month. */
+  const focusSavedDelivery = (record: DeliveryRecord) => {
     const savedDate = dateFromKey(record.delivery_date);
     setSelectedDate(savedDate);
     setMonth(startOfMonth(savedDate));
     deliveries.refresh();
   };
 
+  const handleSaved = (record: DeliveryRecord) => {
+    setDraft(null);
+    toast.success("배달이 저장되었습니다.");
+    focusSavedDelivery(record);
+  };
+
+  const handleAutoSaved = (record: DeliveryRecord) => {
+    toast.success(`음성으로 저장됨: ${record.company_name}`);
+    focusSavedDelivery(record);
+  };
+
   return (
     <MobileShell variant="light" className="gap-3 py-5">
       <RecordingInstructions />
-      <RecordingControl onRecorded={handleRecorded} onManualEntry={handleManualEntry} />
+      <RecordingControl
+        onRecorded={handleRecorded}
+        onManualEntry={handleManualEntry}
+        onAutoSaved={handleAutoSaved}
+      />
       <DeliveryCalendar
         month={month}
         todayKey={todayKey}

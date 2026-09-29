@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { SPEECH_LANG } from "@/lib/constants/recording";
 import { useRecordingTimer } from "@/hooks/useRecordingTimer";
+import {
+  createRecognition,
+  getRecognitionConstructor,
+  isBenignSpeechError,
+  readSessionResults,
+  speechErrorMessage,
+} from "@/lib/speech/recognition";
 import type { RecordingResult, RecordingStatus } from "@/types/recording";
 import type {
-  SpeechRecognitionConstructor,
   SpeechRecognitionErrorEventLike,
   SpeechRecognitionEventLike,
   SpeechRecognitionLike,
@@ -14,30 +19,7 @@ import type {
 
 const STOP_TIMEOUT_MS = 3000;
 
-function getRecognitionConstructor(): SpeechRecognitionConstructor | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
 const noopSubscribe = () => () => {};
-
-function errorMessage(code: string): string {
-  switch (code) {
-    case "not-allowed":
-    case "service-not-allowed":
-      return "마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.";
-    case "audio-capture":
-      return "마이크를 찾을 수 없습니다.";
-    case "network":
-      return "음성 인식 서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.";
-    default:
-      return "음성 인식 중 오류가 발생했습니다.";
-  }
-}
 
 interface Options {
   onComplete: (result: RecordingResult) => void;
@@ -112,20 +94,8 @@ export function useSpeechRecorder({ onComplete }: Options) {
    * which previously produced "신선유통 신선유통 신선유통 ...".
    */
   const handleResult = useCallback((event: SpeechRecognitionEventLike) => {
-    let finalText = "";
-    let pending = "";
-    for (let i = 0; i < event.results.length; i += 1) {
-      const result = event.results[i];
-      const text = result[0]?.transcript.trim() ?? "";
-      if (!text) continue;
-      // Snapshots are cumulative, so the longest final result is the whole utterance.
-      if (result.isFinal) {
-        if (text.length >= finalText.length) finalText = text;
-      } else {
-        pending = text;
-      }
-    }
-    if (finalText) sessionTextRef.current = finalText;
+    const { final, pending } = readSessionResults(event);
+    if (final) sessionTextRef.current = final;
     const live = [...segmentsRef.current, pending || sessionTextRef.current];
     setInterim(live.filter(Boolean).join(" "));
   }, []);
@@ -147,8 +117,8 @@ export function useSpeechRecorder({ onComplete }: Options) {
 
   const handleError = useCallback(
     (event: SpeechRecognitionErrorEventLike) => {
-      if (event.error === "no-speech" || event.error === "aborted") return;
-      setError(errorMessage(event.error));
+      if (isBenignSpeechError(event.error)) return;
+      setError(speechErrorMessage(event.error));
       transition("error");
       recognitionRef.current?.abort();
     },
@@ -157,14 +127,8 @@ export function useSpeechRecorder({ onComplete }: Options) {
 
   const ensureRecognition = useCallback((): SpeechRecognitionLike | null => {
     if (recognitionRef.current) return recognitionRef.current;
-    const Ctor = getRecognitionConstructor();
-    if (!Ctor) return null;
-    const recognition = new Ctor();
-    recognition.lang = SPEECH_LANG;
-    // Single-utterance sessions avoid Android Chrome's duplicated continuous results.
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    const recognition = createRecognition();
+    if (!recognition) return null;
     recognitionRef.current = recognition;
     return recognition;
   }, []);
@@ -188,7 +152,7 @@ export function useSpeechRecorder({ onComplete }: Options) {
     try {
       recognition.start();
     } catch {
-      setError(errorMessage("start-failed"));
+      setError(speechErrorMessage("start-failed"));
       transition("error");
     }
   }, [ensureRecognition, handleEnd, handleError, handleResult, resetTimer, transition]);
