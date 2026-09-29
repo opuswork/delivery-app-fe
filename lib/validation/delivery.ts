@@ -15,6 +15,8 @@ const requiredText = (label: string, max: number) =>
 export const deliveryItemSchema = z.object({
   product_name: requiredText("상품명", 100),
   product_quantity: requiredText("수량", 50),
+  /** Set when editing an already saved row. */
+  delivery_number: z.number().int().positive().optional(),
 });
 
 /** One recording: shared 납품처 and 납품일, one or more products. */

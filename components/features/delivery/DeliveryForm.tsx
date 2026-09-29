@@ -5,12 +5,13 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 
+import { DeleteDeliveryButton } from "@/components/features/delivery/DeleteDeliveryButton";
 import { DeliveryItemRow } from "@/components/features/delivery/DeliveryItemRow";
 import { DeliveryTextField } from "@/components/features/delivery/DeliveryTextField";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { createDeliveryBatch } from "@/lib/api/deliveries";
+import { createDeliveryBatch, updateDeliveryGroup } from "@/lib/api/deliveries";
 import {
   deliverySchema,
   MAX_DELIVERY_ITEMS,
@@ -20,11 +21,24 @@ import type { DeliveryRecord } from "@/types/delivery";
 
 interface DeliveryFormProps {
   defaultValues: DeliveryFormValues;
+  /** Set when editing a saved company block: its row numbers. */
+  editDeliveryNumbers?: number[];
   onCancel: () => void;
   onSaved: (records: DeliveryRecord[]) => void;
+  onDeleted?: () => void;
 }
 
-export function DeliveryForm({ defaultValues, onCancel, onSaved }: DeliveryFormProps) {
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+export function DeliveryForm({
+  defaultValues,
+  editDeliveryNumbers,
+  onCancel,
+  onSaved,
+  onDeleted,
+}: DeliveryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { control, register, handleSubmit, formState } = useForm<DeliveryFormValues>({
     resolver: zodResolver(deliverySchema),
@@ -36,11 +50,32 @@ export function DeliveryForm({ defaultValues, onCancel, onSaved }: DeliveryFormP
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
     try {
-      onSaved(await createDeliveryBatch(values));
+      onSaved(
+        editDeliveryNumbers
+          ? await updateDeliveryGroup({ ...values, delivery_numbers: editDeliveryNumbers })
+          : await createDeliveryBatch(values),
+      );
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "저장하지 못했습니다.");
+      setSubmitError(errorMessage(error, "저장하지 못했습니다."));
     }
   });
+
+  // Uses the saved 납품처/납품일 so a half-edited form cannot block deleting.
+  const deleteBlock = async () => {
+    if (!editDeliveryNumbers) return;
+    setSubmitError(null);
+    try {
+      await updateDeliveryGroup({
+        delivery_numbers: editDeliveryNumbers,
+        company_name: defaultValues.company_name,
+        delivery_date: defaultValues.delivery_date,
+        items: [],
+      });
+      onDeleted?.();
+    } catch (error) {
+      setSubmitError(errorMessage(error, "삭제하지 못했습니다."));
+    }
+  };
 
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -83,6 +118,9 @@ export function DeliveryForm({ defaultValues, onCancel, onSaved }: DeliveryFormP
           </Button>
         ) : null}
         {submitError ? <FieldError>{submitError}</FieldError> : null}
+        {editDeliveryNumbers ? (
+          <DeleteDeliveryButton disabled={isSubmitting} onConfirm={deleteBlock} />
+        ) : null}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" size="lg" onClick={onCancel}>
             취소

@@ -16,33 +16,48 @@ export interface DeliveryDraft {
   id: number;
   values: DeliveryFormValues;
   transcript: string | null;
+  /** Row numbers of the saved company block being edited (edit mode). */
+  editDeliveryNumbers?: number[];
+}
+
+function descriptionFor(draft: DeliveryDraft | null): string {
+  if (draft?.editDeliveryNumbers) return "저장된 배달을 수정하거나 삭제합니다.";
+  if (draft?.transcript) return `인식된 음성: "${draft.transcript}"`;
+  return "배달 정보를 입력해 주세요.";
 }
 
 interface DeliveryConfirmDialogProps {
   draft: DeliveryDraft | null;
   onClose: () => void;
   onSaved: (records: DeliveryRecord[]) => void;
+  onDeleted: () => void;
 }
 
-/** Lets the user confirm or correct the fields extracted from speech before saving. */
-export function DeliveryConfirmDialog({ draft, onClose, onSaved }: DeliveryConfirmDialogProps) {
+/**
+ * Confirms speech before saving, or edits/deletes a saved company block
+ * (same form, `draft.editDeliveryNumbers` set).
+ */
+export function DeliveryConfirmDialog({
+  draft,
+  onClose,
+  onSaved,
+  onDeleted,
+}: DeliveryConfirmDialogProps) {
   return (
     <Dialog open={draft !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90dvh] max-w-sm overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>배달 내용 확인</DialogTitle>
-          <DialogDescription>
-            {draft?.transcript
-              ? `인식된 음성: "${draft.transcript}"`
-              : "배달 정보를 입력해 주세요."}
-          </DialogDescription>
+          <DialogTitle>{draft?.editDeliveryNumbers ? "배달 수정" : "배달 내용 확인"}</DialogTitle>
+          <DialogDescription>{descriptionFor(draft)}</DialogDescription>
         </DialogHeader>
         {draft ? (
           <DeliveryForm
             key={draft.id}
             defaultValues={draft.values}
+            editDeliveryNumbers={draft.editDeliveryNumbers}
             onCancel={onClose}
             onSaved={onSaved}
+            onDeleted={onDeleted}
           />
         ) : null}
       </DialogContent>
