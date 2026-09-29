@@ -61,6 +61,8 @@ export function DeliveryCalendar({
                 "flex-1 pb-2 text-lg font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
               week: "mt-1 flex w-full",
               day: "flex-1 p-0.5 text-center",
+              // CalendarDay draws its own today/selected styling.
+              today: "",
             }}
             components={{ DayButton: CalendarDay }}
           />
