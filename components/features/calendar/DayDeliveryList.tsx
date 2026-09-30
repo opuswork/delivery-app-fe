@@ -7,32 +7,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatDateKeyKo } from "@/lib/date";
 import type { DeliveryRecord } from "@/types/delivery";
 
-interface CompanyGroup {
-  company: string;
-  records: DeliveryRecord[];
-}
-
-/** Groups the day's records by 납품처, keeping the order they were saved in. */
-function groupByCompany(records: readonly DeliveryRecord[]): CompanyGroup[] {
-  const groups = new Map<string, DeliveryRecord[]>();
-  for (const record of records) {
-    const list = groups.get(record.company_name);
-    if (list) list.push(record);
-    else groups.set(record.company_name, [record]);
-  }
-  return [...groups].map(([company, list]) => ({ company, records: list }));
-}
-
 interface DayDeliveryListProps {
   dateKey: string;
   records: readonly DeliveryRecord[];
   loading: boolean;
   error: string | null;
-  /** Opens the edit modal for one company block of this day. */
-  onEdit: (records: DeliveryRecord[]) => void;
+  /** Opens the edit modal for one delivery of this day. */
+  onEdit: (record: DeliveryRecord) => void;
 }
 
-/** The recorded deliveries (as text) for the selected calendar day. */
+/** The recorded delivery memos for the selected calendar day. */
 export function DayDeliveryList({
   dateKey,
   records,
@@ -55,28 +39,23 @@ export function DayDeliveryList({
           <p className="text-sm text-slate-400">등록된 배달이 없습니다.</p>
         ) : (
           <ol className="flex flex-col">
-            {groupByCompany(records).map((group, index) => (
-              <li key={group.company}>
+            {records.map((record, index) => (
+              <li key={record.delivery_number}>
                 {index > 0 ? <Separator className="my-2" /> : null}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-base font-bold text-slate-800">{group.company}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 pt-1 text-base whitespace-pre-wrap break-words text-slate-800">
+                    {record.memo}
+                  </p>
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`${group.company} 수정`}
-                    onClick={() => onEdit(group.records)}
-                    className="text-brand-violet hover:bg-brand-lavender"
+                    aria-label={`배달 ${index + 1} 수정`}
+                    onClick={() => onEdit(record)}
+                    className="shrink-0 text-brand-violet hover:bg-brand-lavender"
                   >
                     <PencilIcon /> 수정
                   </Button>
                 </div>
-                <ul className="flex flex-col gap-0.5">
-                  {group.records.map((record) => (
-                    <li key={record.delivery_number} className="text-sm text-slate-600">
-                      {record.product_name} · {record.product_quantity}
-                    </li>
-                  ))}
-                </ul>
               </li>
             ))}
           </ol>

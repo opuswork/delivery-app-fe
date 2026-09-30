@@ -1,10 +1,5 @@
 import { apiRequest } from "@/lib/api-client";
-import type {
-  CreateDeliveryBatchRequest,
-  CreateDeliveryRequest,
-  DeliveryRecord,
-  UpdateDeliveryGroupRequest,
-} from "@/types/delivery";
+import type { DeliveryRecord, DeliveryRequest } from "@/types/delivery";
 
 /** @param month yyyy-mm */
 export function listDeliveries(
@@ -17,22 +12,20 @@ export function listDeliveries(
   );
 }
 
-export function createDelivery(
-  body: CreateDeliveryRequest,
-): Promise<DeliveryRecord> {
+export function createDelivery(body: DeliveryRequest): Promise<DeliveryRecord> {
   return apiRequest<DeliveryRecord>("/deliveries", { method: "POST", body });
 }
 
-/** Saves all products of one recording together (all-or-nothing). */
-export function createDeliveryBatch(
-  body: CreateDeliveryBatchRequest,
-): Promise<DeliveryRecord[]> {
-  return apiRequest<DeliveryRecord[]>("/deliveries/batch", { method: "POST", body });
+export function updateDelivery(
+  deliveryNumber: number,
+  body: DeliveryRequest,
+): Promise<DeliveryRecord> {
+  return apiRequest<DeliveryRecord>(`/deliveries/${deliveryNumber}`, {
+    method: "PUT",
+    body,
+  });
 }
 
-/** Edits or deletes (empty items) one company block, all-or-nothing. */
-export function updateDeliveryGroup(
-  body: UpdateDeliveryGroupRequest,
-): Promise<DeliveryRecord[]> {
-  return apiRequest<DeliveryRecord[]>("/deliveries/group", { method: "PUT", body });
+export function deleteDelivery(deliveryNumber: number): Promise<void> {
+  return apiRequest<void>(`/deliveries/${deliveryNumber}`, { method: "DELETE" });
 }

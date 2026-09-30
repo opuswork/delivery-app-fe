@@ -8,10 +8,12 @@ interface DeliveryCalendarContextValue {
   byDate: DeliveriesByDate;
   /** yyyy-mm-dd of the current local day. */
   todayKey: string;
+  /** Opens the modal to add a memo on the given day. */
+  onAdd: (date: Date) => void;
 }
 
 /**
- * Lets the day-cell component (rendered by react-day-picker, not by us)
+ * Lets the day-cell components (rendered by react-day-picker, not by us)
  * read delivery data without redefining components on every render.
  */
 export const DeliveryCalendarContext =
