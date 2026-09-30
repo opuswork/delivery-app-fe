@@ -2,12 +2,12 @@
 
 import { DeliveryForm } from "@/components/features/delivery/DeliveryForm";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  BottomSheet,
+  BottomSheetContent,
+  BottomSheetDescription,
+  BottomSheetHeader,
+  BottomSheetTitle,
+} from "@/components/ui/bottom-sheet";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
 import type { DeliveryRecord } from "@/types/delivery";
 
@@ -40,7 +40,7 @@ interface DeliveryConfirmDialogProps {
 }
 
 /**
- * Confirms speech before saving, adds a memo by hand, or edits/deletes a
+ * Bottom sheet that confirms speech before saving, adds a memo by hand, or edits/deletes a
  * saved delivery (same form, `draft.editDeliveryNumber` set).
  */
 export function DeliveryConfirmDialog({
@@ -50,12 +50,12 @@ export function DeliveryConfirmDialog({
   onDeleted,
 }: DeliveryConfirmDialogProps) {
   return (
-    <Dialog open={draft !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90dvh] max-w-sm overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{titleFor(draft)}</DialogTitle>
-          <DialogDescription>{descriptionFor(draft)}</DialogDescription>
-        </DialogHeader>
+    <BottomSheet open={draft !== null} onOpenChange={(open) => !open && onClose()}>
+      <BottomSheetContent>
+        <BottomSheetHeader>
+          <BottomSheetTitle>{titleFor(draft)}</BottomSheetTitle>
+          <BottomSheetDescription>{descriptionFor(draft)}</BottomSheetDescription>
+        </BottomSheetHeader>
         {draft ? (
           <DeliveryForm
             key={draft.id}
@@ -66,7 +66,7 @@ export function DeliveryConfirmDialog({
             onDeleted={onDeleted}
           />
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </BottomSheetContent>
+    </BottomSheet>
   );
 }

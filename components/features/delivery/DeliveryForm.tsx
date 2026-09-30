@@ -86,6 +86,7 @@ export function DeliveryForm({
           </FieldLabel>
           <Textarea
             id="memo"
+            data-base-ui-swipe-ignore
             rows={6}
             maxLength={MAX_MEMO_LENGTH}
             placeholder="홈플러스 1급진간장 1.8리터 10통"
