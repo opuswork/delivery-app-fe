@@ -26,12 +26,16 @@ export type HandsFreeStatus =
   | "saving"
   | "announcing"; // reading back the result or asking again
 
-/** Silence after a complete delivery before it is saved. */
-const SAVE_AFTER_SILENCE_MS = 1500;
+/**
+ * Silence after a date + memo before it is saved without "끝". Longer than a
+ * thinking pause, because any memo text already counts as complete.
+ */
+const SAVE_AFTER_SILENCE_MS = 3500;
 /** Silence after an incomplete delivery before asking again. */
 const GIVE_UP_AFTER_SILENCE_MS = 5000;
 const MAX_ATTEMPTS = 2;
-const RESTART_DELAY_MS = 150;
+/** Short pause before restarting an ended session (lets the engine settle). */
+const RESTART_DELAY_MS = 30;
 const CLOSING_WORD = /(?:^|\s)(?:끝|이상)(?:입니다)?[.!]?$/;
 
 export interface HandsFreeCallbacks {
@@ -40,8 +44,6 @@ export interface HandsFreeCallbacks {
   onError: (message: string) => void;
   /** Persists the delivery; must throw when saving fails. */
   save: (values: DeliveryFormValues) => Promise<void>;
-  /** Company names from earlier deliveries (keeps "우리 식당" together). */
-  knownCompanies: () => readonly string[];
 }
 
 /** 을/를 depending on whether the word ends in a final consonant. */
@@ -133,7 +135,7 @@ export class HandsFreeEngine {
     const { final, pending } = readSessionResults(event);
 
     if (this.status === "waiting") {
-      // Act on final results only, so "오케이 배달 신선유통…" in one breath is kept whole.
+      // Act on final results only, so "오케이 배달 10월 7일…" in one breath is kept whole.
       const wake = final ? findWakeWord(final) : null;
       if (wake) void this.onWake(wake.rest);
       return;
@@ -142,16 +144,17 @@ export class HandsFreeEngine {
 
     const stripWake = (text: string) => findWakeWord(text)?.rest ?? text;
     if (final) this.sessionText = stripWake(final);
-    const live = [...this.segments, stripWake(pending) || this.sessionText];
+    const live = [...this.segments, this.sessionText, stripWake(pending)];
     this.callbacks.onLiveText(live.filter(Boolean).join(" "));
     this.scheduleEvaluation();
   }
 
   private async onWake(rest: string): Promise<void> {
     if (rest) {
-      // Delivery spoken in the same breath: skip the prompt.
-      this.segments = [rest];
-      this.sessionText = "";
+      // Delivery spoken in the same breath: skip the prompt. The session keeps
+      // running, so its (growing) text stays the session text, not a segment.
+      this.segments = [];
+      this.sessionText = rest;
       this.setStatus("dictating");
       this.callbacks.onLiveText(rest);
       this.scheduleEvaluation();
@@ -198,7 +201,7 @@ export class HandsFreeEngine {
   private scheduleEvaluation(): void {
     if (this.silenceTimer !== null) window.clearTimeout(this.silenceTimer);
     const spoken = this.spokenSoFar();
-    const complete = checkParsedDelivery(this.parse(spoken)).ok;
+    const complete = checkParsedDelivery(parseDeliveryTranscript(spoken)).ok;
     const saidDone = CLOSING_WORD.test(spoken.join(" "));
     const delay = saidDone ? 0 : complete ? SAVE_AFTER_SILENCE_MS : GIVE_UP_AFTER_SILENCE_MS;
     this.silenceTimer = window.setTimeout(() => void this.evaluate(), delay);
@@ -211,7 +214,7 @@ export class HandsFreeEngine {
     const run = this.run;
     this.recognition?.abort();
 
-    const check = checkParsedDelivery(this.parse(this.segments));
+    const check = checkParsedDelivery(parseDeliveryTranscript(this.segments));
     if (!check.ok) {
       this.attempts += 1;
       const retry = this.attempts < MAX_ATTEMPTS;
@@ -240,10 +243,6 @@ export class HandsFreeEngine {
     this.setStatus("announcing");
     await speak(message);
     if (run === this.run) this.listenForWakeWord();
-  }
-
-  private parse(spoken: readonly string[]) {
-    return parseDeliveryTranscript(spoken, new Date(), this.callbacks.knownCompanies());
   }
 
   private clearTimers(): void {

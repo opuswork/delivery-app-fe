@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { ko } from "react-day-picker/locale";
 
+import { CalendarCell } from "@/components/features/calendar/CalendarCell";
 import { CalendarDay } from "@/components/features/calendar/CalendarDay";
 import { CalendarNav } from "@/components/features/calendar/CalendarNav";
 import { DeliveryCalendarContext } from "@/components/features/calendar/DeliveryCalendarContext";
@@ -20,6 +21,8 @@ interface DeliveryCalendarProps {
   selectedDate: Date;
   onMonthChange: (month: Date) => void;
   onSelectDate: (date: Date) => void;
+  /** "+" on the selected day: add a memo for that date. */
+  onAdd: (date: Date) => void;
 }
 
 export function DeliveryCalendar({
@@ -29,8 +32,12 @@ export function DeliveryCalendar({
   selectedDate,
   onMonthChange,
   onSelectDate,
+  onAdd,
 }: DeliveryCalendarProps) {
-  const contextValue = useMemo(() => ({ byDate, todayKey }), [byDate, todayKey]);
+  const contextValue = useMemo(
+    () => ({ byDate, todayKey, onAdd }),
+    [byDate, todayKey, onAdd],
+  );
 
   return (
     <Card className="rounded-[2rem] bg-white py-6 shadow-sm ring-0">
@@ -60,11 +67,11 @@ export function DeliveryCalendar({
               weekday:
                 "flex-1 pb-2 text-lg font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
               week: "mt-1 flex w-full",
-              day: "flex-1 p-0.5 text-center",
+              day: "relative flex-1 p-0.5 text-center",
               // CalendarDay draws its own today/selected styling.
               today: "",
             }}
-            components={{ DayButton: CalendarDay }}
+            components={{ Day: CalendarCell, DayButton: CalendarDay }}
           />
         </DeliveryCalendarContext.Provider>
       </CardContent>

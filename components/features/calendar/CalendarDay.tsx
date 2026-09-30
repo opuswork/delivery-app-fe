@@ -49,7 +49,8 @@ export function CalendarDay({ day, modifiers, className, ...props }: DayButtonPr
         {day.date.getDate()}
       </span>
       {isToday ? <span className="text-xs font-bold text-brand-violet">오늘</span> : null}
-      {count > 0 ? <DeliveryBadge count={count} /> : null}
+      {/* The selected day shows CalendarCell's "+" button in the badge's place. */}
+      {count > 0 && !modifiers.selected ? <DeliveryBadge count={count} /> : null}
     </Button>
   );
 }

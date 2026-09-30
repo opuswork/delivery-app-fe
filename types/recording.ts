@@ -14,17 +14,8 @@ export interface RecordingResult {
   durationMs: number;
 }
 
-export interface ParsedDeliveryItem {
-  product_name: string;
-  product_quantity: string;
-}
-
-/**
- * Fields extracted from one recording; empty string when not recognised.
- * One 납품처 and 납품일 with one or more products.
- */
+/** Fields extracted from one recording; empty string when not recognised. */
 export interface ParsedDelivery {
-  company_name: string;
   delivery_date: string;
-  items: ParsedDeliveryItem[];
+  memo: string;
 }

@@ -1,10 +1,9 @@
-export const RECORDING_SEQUENCE = ["납품처", "상품명", "수량", "납품일"] as const;
+export const RECORDING_SEQUENCE = ["납품일", "메모", "끝"] as const;
 
 export const RECORDING_EXAMPLE = [
-  "하나마트",
-  "1급진간장1.8L",
-  "4통",
-  "29일",
+  "10월 7일",
+  "홈플러스 1급진간장 1.8리터 10통",
+  "끝",
 ] as const;
 
 export const SPEECH_LANG = "ko-KR";

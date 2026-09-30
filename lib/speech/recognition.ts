@@ -20,8 +20,11 @@ export function createRecognition(): SpeechRecognitionLike | null {
   if (!Ctor) return null;
   const recognition = new Ctor();
   recognition.lang = SPEECH_LANG;
-  // Single-utterance sessions avoid Android Chrome's duplicated continuous results.
-  recognition.continuous = false;
+  // Continuous sessions keep listening through short pauses. Single-utterance
+  // sessions restarted after every pause, and words spoken during each restart
+  // were lost when people spoke quickly. Android's repeated results are
+  // handled by mergeFinalResults instead.
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
   return recognition;
@@ -46,27 +49,44 @@ export function speechErrorMessage(code: string): string {
   }
 }
 
+const compact = (text: string) => text.replace(/\s+/g, "");
+
+/**
+ * Merges a session's final results into one transcript, for both engines:
+ * - desktop Chrome sends separate phrases        → append them
+ * - Android Chrome re-sends growing snapshots    → keep the longer one
+ * - either may repeat a phrase it already sent   → skip it
+ * Comparison ignores spaces ("1급한" vs "1급 한").
+ */
+export function mergeFinalResults(finals: readonly string[]): string {
+  let merged = "";
+  for (const text of finals) {
+    const next = compact(text);
+    const current = compact(merged);
+    if (!next) continue;
+    if (!merged || next.startsWith(current)) merged = text;
+    else if (!current.includes(next)) merged = `${merged} ${text}`;
+  }
+  return merged;
+}
+
 /**
  * Reads one recognition event as { final, pending } for the current session.
- * The full result list is rebuilt on every event instead of appended: Android
- * Chrome re-sends growing snapshots of the same speech, so the longest final
- * result is the whole utterance.
+ * The full result list is rebuilt on every event instead of appended, so the
+ * same speech is never counted twice.
  */
 export function readSessionResults(event: SpeechRecognitionEventLike): {
   final: string;
   pending: string;
 } {
-  let final = "";
+  const finals: string[] = [];
   let pending = "";
   for (let i = 0; i < event.results.length; i += 1) {
     const result = event.results[i];
     const text = result[0]?.transcript.trim() ?? "";
     if (!text) continue;
-    if (result.isFinal) {
-      if (text.length >= final.length) final = text;
-    } else {
-      pending = text;
-    }
+    if (result.isFinal) finals.push(text);
+    else pending = text;
   }
-  return { final, pending };
+  return { final: mergeFinalResults(finals), pending };
 }

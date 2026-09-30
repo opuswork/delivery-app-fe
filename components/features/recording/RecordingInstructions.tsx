@@ -15,7 +15,7 @@ export function RecordingInstructions() {
       <p className="text-lg font-bold text-slate-900">
         {RECORDING_SEQUENCE.join(" -> ")}
       </p>
-      <p className="text-base font-bold text-brand-example">
+      <p className="text-base font-bold break-keep text-brand-example">
         (예:{RECORDING_EXAMPLE.join("->")})
       </p>
     </SectionFrame>
