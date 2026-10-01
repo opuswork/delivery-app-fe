@@ -1,25 +1,23 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { DeleteDeliveryButton } from "@/components/features/delivery/DeleteDeliveryButton";
 import { DeliveryTextField } from "@/components/features/delivery/DeliveryTextField";
+import { DeliveryTypeSelect } from "@/components/features/delivery/DeliveryTypeSelect";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { createDelivery, deleteDelivery, updateDelivery } from "@/lib/api/deliveries";
-import { DELIVERY_TYPES, DELIVERY_TYPE_COLORS } from "@/lib/constants/delivery";
 import {
   deliverySchema,
   MAX_MEMO_LENGTH,
   type DeliveryFormValues,
   type ValidDelivery,
 } from "@/lib/validation/delivery";
-import { cn } from "@/lib/utils";
 import type { DeliveryRecord } from "@/types/delivery";
 
 interface DeliveryFormProps {
@@ -93,45 +91,12 @@ export function DeliveryForm({
           error={errors.company_name?.message}
           {...register("company_name")}
         />
-        <Field data-invalid={Boolean(errors.delivery_type)} className="gap-1.5">
-          <FieldLabel htmlFor="delivery_type" className="text-sm font-medium text-slate-700">
-            납품종류
-          </FieldLabel>
-          <div className="relative">
-            {deliveryType ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute top-1/2 left-3 size-3 -translate-y-1/2 rounded-full"
-                style={{ backgroundColor: DELIVERY_TYPE_COLORS[deliveryType] }}
-              />
-            ) : null}
-            <select
-              id="delivery_type"
-              aria-invalid={Boolean(errors.delivery_type)}
-              className={cn(
-                "h-11 w-full appearance-none rounded-lg border border-input bg-white px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
-                deliveryType ? "pl-8 text-slate-900" : "text-slate-400",
-              )}
-              {...register("delivery_type")}
-            >
-              <option value="" disabled>
-                선택해 주세요
-              </option>
-              {DELIVERY_TYPES.map((type) => (
-                <option key={type} value={type} className="text-slate-900">
-                  {type}
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-slate-500"
-            />
-          </div>
-          {errors.delivery_type ? (
-            <FieldError>{errors.delivery_type.message}</FieldError>
-          ) : null}
-        </Field>
+        <DeliveryTypeSelect
+          id="delivery_type"
+          selected={deliveryType}
+          error={errors.delivery_type?.message}
+          {...register("delivery_type")}
+        />
         <Field data-invalid={Boolean(errors.memo)} className="gap-1.5">
           <FieldLabel htmlFor="memo" className="text-sm font-medium text-slate-700">
             메모 <span className="font-normal text-slate-400">(선택)</span>

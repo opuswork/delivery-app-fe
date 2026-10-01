@@ -9,6 +9,7 @@ import {
   DeliveryConfirmDialog,
   type DeliveryDraft,
 } from "@/components/features/delivery/DeliveryConfirmDialog";
+import { BulkEditDeliverySheet } from "@/components/features/delivery/BulkEditDeliverySheet";
 import { RepeatDeliverySheet } from "@/components/features/delivery/RepeatDeliverySheet";
 import { RecordingControl } from "@/components/features/recording/RecordingControl";
 import { RecordingInstructions } from "@/components/features/recording/RecordingInstructions";
@@ -29,6 +30,7 @@ export function DeliveryDashboard() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [draft, setDraft] = useState<DeliveryDraft | null>(null);
   const [repeatSource, setRepeatSource] = useState<DeliveryRecord | null>(null);
+  const [bulkEditSource, setBulkEditSource] = useState<DeliveryRecord | null>(null);
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
   const selectedKey = toDateKey(selectedDate);
@@ -118,6 +120,12 @@ export function DeliveryDashboard() {
     deliveries.refresh();
   };
 
+  const handleBulkEdited = (message: string) => {
+    setBulkEditSource(null);
+    toast.success(message);
+    deliveries.refresh();
+  };
+
   const handleAutoSaved = (record: DeliveryRecord) => {
     toast.success(
       `음성으로 저장됨: ${formatDateKeyKo(record.delivery_date)} ${record.company_name}`,
@@ -150,6 +158,7 @@ export function DeliveryDashboard() {
         error={deliveries.error}
         onEdit={handleEdit}
         onRepeat={setRepeatSource}
+        onBulkEdit={setBulkEditSource}
       />
       <AccountFooter />
       <DeliveryConfirmDialog
@@ -162,6 +171,11 @@ export function DeliveryDashboard() {
         source={repeatSource}
         onClose={() => setRepeatSource(null)}
         onRepeated={handleRepeated}
+      />
+      <BulkEditDeliverySheet
+        source={bulkEditSource}
+        onClose={() => setBulkEditSource(null)}
+        onSaved={handleBulkEdited}
       />
     </MobileShell>
   );
