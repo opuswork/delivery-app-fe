@@ -1,4 +1,4 @@
-import { CopyIcon, PencilIcon } from "lucide-react";
+import { CalendarCheckIcon, CopyIcon, PencilIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,8 @@ interface DayDeliveryListProps {
   onEdit: (record: DeliveryRecord) => void;
   /** Opens the repeat sheet to copy one delivery onto other dates. */
   onRepeat: (record: DeliveryRecord) => void;
+  /** Opens 선택수정: edit this delivery on several chosen dates at once. */
+  onBulkEdit: (record: DeliveryRecord) => void;
 }
 
 /** The recorded deliveries (납품처 + 납품종류 + 메모) for the selected calendar day. */
@@ -27,6 +29,7 @@ export function DayDeliveryList({
   error,
   onEdit,
   onRepeat,
+  onBulkEdit,
 }: DayDeliveryListProps) {
   return (
     <Card className="rounded-3xl bg-white shadow-sm ring-0">
@@ -72,7 +75,7 @@ export function DayDeliveryList({
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 flex-col items-stretch gap-1">
+                  <div className="grid shrink-0 grid-cols-[auto_auto] gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -81,6 +84,15 @@ export function DayDeliveryList({
                       className="justify-start text-brand-violet hover:bg-brand-lavender"
                     >
                       <PencilIcon /> 수정
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`${record.company_name || `배달 ${index + 1}`} 여러 날짜 선택수정`}
+                      onClick={() => onBulkEdit(record)}
+                      className="justify-start text-brand-violet hover:bg-brand-lavender"
+                    >
+                      <CalendarCheckIcon /> 선택수정
                     </Button>
                     <Button
                       variant="ghost"

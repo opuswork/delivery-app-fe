@@ -26,6 +26,11 @@ export const deliverySchema = z.object({
     .max(MAX_MEMO_LENGTH, `메모는 ${MAX_MEMO_LENGTH}자 이하여야 합니다.`),
 });
 
+/** 선택수정: everything except the date, which comes from the selected days. */
+export const deliveryContentSchema = deliverySchema.omit({ delivery_date: true });
+export type DeliveryContentValues = z.input<typeof deliveryContentSchema>;
+export type ValidDeliveryContent = z.output<typeof deliveryContentSchema>;
+
 /** What the form holds: 납품종류 may still be unselected (""). */
 export type DeliveryFormValues = z.input<typeof deliverySchema>;
 /** What passes validation: every required field filled in. */

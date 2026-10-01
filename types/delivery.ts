@@ -26,6 +26,11 @@ export interface RepeatDeliveryResult {
   skipped_dates: string[];
 }
 
+/** 선택수정: the same 납품처 / 납품종류 / 메모 written to several saved deliveries. */
+export interface BulkUpdateDeliveryRequest extends Omit<DeliveryRequest, "delivery_date"> {
+  delivery_numbers: number[];
+}
+
 /** Delivery records keyed by their yyyy-mm-dd delivery date. */
 export type DeliveriesByDate = ReadonlyMap<string, DeliveryRecord[]>;
 
