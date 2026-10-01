@@ -31,11 +31,11 @@ import type { DeliveryRecord, RepeatDeliveryResult } from "@/types/delivery";
 const MAX_REPEAT_DATES = 366;
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
-type RepeatMode = "weekly" | "daily" | "custom";
+type RepeatMode = "weekly" | "monthly" | "custom";
 
 const MODES: { value: RepeatMode; label: string }[] = [
   { value: "weekly", label: "매주" },
-  { value: "daily", label: "매일" },
+  { value: "monthly", label: "매월" },
   { value: "custom", label: "직접 선택" },
 ];
 
@@ -46,24 +46,50 @@ interface RepeatRule {
   endKey: string;
 }
 
+/**
+ * The same day of the month, `offset` months after `source`. A day the month
+ * does not have becomes its last day (31일 → 11월 30일).
+ */
+function sameDayOfMonth(source: Date, offset: number): Date {
+  const year = source.getFullYear();
+  const month = source.getMonth() + offset;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(source.getDate(), lastDay));
+}
+
 /** Dates after `sourceKey` up to the end date that match the rule ("직접 선택": none). */
 function datesForRule(sourceKey: string, rule: RepeatRule): Date[] {
   if (rule.mode === "custom" || !isValidDateKey(rule.endKey)) return [];
+  const source = fromDateKey(sourceKey);
   const dates: Date[] = [];
+  if (rule.mode === "monthly") {
+    for (
+      let offset = 1, date = sameDayOfMonth(source, 1);
+      toDateKey(date) <= rule.endKey && dates.length < MAX_REPEAT_DATES;
+      offset += 1, date = sameDayOfMonth(source, offset)
+    ) {
+      dates.push(date);
+    }
+    return dates;
+  }
   for (
-    let date = addDays(fromDateKey(sourceKey), 1);
+    let date = addDays(source, 1);
     toDateKey(date) <= rule.endKey && dates.length < MAX_REPEAT_DATES;
     date = addDays(date, 1)
   ) {
-    if (rule.mode === "daily" || rule.weekdays.has(date.getDay())) dates.push(date);
+    if (rule.weekdays.has(date.getDay())) dates.push(date);
   }
   return dates;
 }
 
-/** Last day of the month after the source's month: roughly 4–8 weeks of repeats. */
-function defaultEndKey(sourceKey: string): string {
+/**
+ * 매주: the last day of the month after the source's (4–8 weekly repeats).
+ * 매월: the last day of the 6th month after it (6 monthly repeats).
+ */
+function defaultEndKey(sourceKey: string, mode: RepeatMode): string {
   const source = fromDateKey(sourceKey);
-  return toDateKey(new Date(source.getFullYear(), source.getMonth() + 2, 0));
+  const months = mode === "monthly" ? 7 : 2;
+  return toDateKey(new Date(source.getFullYear(), source.getMonth() + months, 0));
 }
 
 function resultMessage({ created, skipped_dates }: RepeatDeliveryResult): string {
@@ -85,7 +111,7 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
   const [rule, setRule] = useState<RepeatRule>(() => ({
     mode: "weekly",
     weekdays: new Set([fromDateKey(sourceKey).getDay()]),
-    endKey: defaultEndKey(sourceKey),
+    endKey: defaultEndKey(sourceKey, "weekly"),
   }));
   const [selected, setSelected] = useState<Date[]>(() => datesForRule(sourceKey, rule));
   const [submitting, setSubmitting] = useState(false);
@@ -153,7 +179,9 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
               aria-checked={rule.mode === value}
               variant={rule.mode === value ? "default" : "outline"}
               size="lg"
-              onClick={() => applyRule({ ...rule, mode: value })}
+              onClick={() =>
+                applyRule({ ...rule, mode: value, endKey: defaultEndKey(sourceKey, value) })
+              }
               className={cn(
                 rule.mode === value && "bg-brand-violet text-white hover:bg-brand-violet/90",
               )}
@@ -246,7 +274,7 @@ interface RepeatDeliverySheetProps {
   onRepeated: (message: string) => void;
 }
 
-/** Copies one saved delivery onto other dates: weekly / daily rule or hand-picked dates. */
+/** Copies one saved delivery onto other dates: weekly / monthly rule or hand-picked dates. */
 export function RepeatDeliverySheet({ source, onClose, onRepeated }: RepeatDeliverySheetProps) {
   return (
     <BottomSheet open={source !== null} onOpenChange={(open) => !open && onClose()}>
