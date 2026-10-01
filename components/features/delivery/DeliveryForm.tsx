@@ -31,7 +31,7 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-/** 납품일 + 메모, used for voice confirmation, manual entry and editing. */
+/** 납품일 + 납품처 + 메모, used for voice confirmation, manual entry and editing. */
 export function DeliveryForm({
   defaultValues,
   editDeliveryNumber,
@@ -80,18 +80,26 @@ export function DeliveryForm({
           error={errors.delivery_date?.message}
           {...register("delivery_date")}
         />
+        <DeliveryTextField
+          id="company_name"
+          label="납품처"
+          placeholder="홈플러스"
+          maxLength={100}
+          error={errors.company_name?.message}
+          {...register("company_name")}
+        />
         <Field data-invalid={Boolean(errors.memo)} className="gap-1.5">
           <FieldLabel htmlFor="memo" className="text-sm font-medium text-slate-700">
-            메모
+            메모 <span className="font-normal text-slate-400">(선택)</span>
           </FieldLabel>
           <Textarea
             id="memo"
             data-base-ui-swipe-ignore
-            rows={6}
+            rows={5}
             maxLength={MAX_MEMO_LENGTH}
-            placeholder="홈플러스 1급진간장 1.8리터 10통"
+            placeholder="1급진간장 1.8리터 10통"
             aria-invalid={Boolean(errors.memo)}
-            className="min-h-40 resize-none rounded-lg bg-white text-base md:text-base"
+            className="min-h-32 resize-none rounded-lg bg-white text-base md:text-base"
             {...register("memo")}
           />
           {errors.memo ? <FieldError>{errors.memo.message}</FieldError> : null}
