@@ -17,5 +17,6 @@ export interface RecordingResult {
 /** Fields extracted from one recording; empty string when not recognised. */
 export interface ParsedDelivery {
   delivery_date: string;
+  company_name: string;
   memo: string;
 }

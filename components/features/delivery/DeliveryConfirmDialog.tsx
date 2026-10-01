@@ -29,7 +29,7 @@ function titleFor(draft: DeliveryDraft | null): string {
 function descriptionFor(draft: DeliveryDraft | null): string {
   if (draft?.editDeliveryNumber) return "저장된 배달을 수정하거나 삭제합니다.";
   if (draft?.transcript) return `인식된 음성: "${draft.transcript}"`;
-  return "납품일과 메모를 입력해 주세요.";
+  return "납품일, 납품처, 메모를 입력해 주세요.";
 }
 
 interface DeliveryConfirmDialogProps {

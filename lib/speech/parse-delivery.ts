@@ -2,9 +2,9 @@ import { toDateKey } from "@/lib/date";
 import type { ParsedDelivery } from "@/types/recording";
 
 /**
- * Turns a spoken delivery ("납품일 -> 메모 -> 끝") into fields:
+ * Turns a spoken delivery ("납품일 -> 납품처 -> 메모 -> 끝") into fields:
  * "10월 7일 홈플러스 1급진간장 1.8리터 10통 끝" →
- * { delivery_date: "2026-10-07", memo: "홈플러스 1급진간장 1.8리터 10통" }.
+ * { delivery_date: "2026-10-07", company_name: "홈플러스", memo: "1급진간장 1.8리터 10통" }.
  * The result is a best-effort suggestion: the user always confirms/edits it.
  */
 
@@ -97,20 +97,58 @@ function resolveDate(
     : resolveDayOnly(spokenNumber(day), today);
 }
 
+/** Splits `text` after its first `count` non-space characters. */
+function splitAfterLetters(text: string, count: number): [string, string] {
+  let seen = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== " ") seen += 1;
+    if (seen === count) return [text.slice(0, i + 1), text.slice(i + 1)];
+  }
+  return [text, ""];
+}
+
+/**
+ * 납품처 is the start of the rest: a company name used before (longest
+ * match, spaces ignored: "우리식당" = "우리 식당"), otherwise the first word.
+ */
+function splitCompanyMemo(
+  rest: string,
+  knownCompanies: readonly string[],
+): { company_name: string; memo: string } {
+  const compactRest = rest.replace(/\s/g, "");
+  const known = knownCompanies
+    .map((name) => ({ name: name.trim(), compact: name.replace(/\s/g, "") }))
+    .filter(({ compact }) => compact && compactRest.startsWith(compact))
+    .sort((a, b) => b.compact.length - a.compact.length)[0];
+  if (known) {
+    const [, memo] = splitAfterLetters(rest, known.compact.length);
+    // Whole words only: a saved "하나" must not split "하나마트".
+    if (!memo || memo.startsWith(" ")) {
+      return { company_name: known.name, memo: memo.trim() };
+    }
+  }
+  const [company_name = "", ...memo] = rest.split(" ").filter(Boolean);
+  return { company_name, memo: memo.join(" ") };
+}
+
 /**
  * The date is expected first; if it is not, the first unambiguous date in
- * the sentence is used. Everything else (without "끝") becomes the memo.
+ * the sentence is used. The rest (without "끝") is 납품처 followed by the memo.
+ *
+ * @param knownCompanies 납품처 from earlier deliveries, used to keep
+ *   multi-word names ("우리 식당") together
  */
 export function parseDeliveryTranscript(
   segments: readonly string[],
   now: Date = new Date(),
+  knownCompanies: readonly string[] = [],
 ): ParsedDelivery {
   const today = startOfDay(now);
   const text = normalize(segments.join(" "));
 
   const leading = DATE.exec(text);
   const match = leading?.index === 0 ? leading : DATE_ANYWHERE.exec(text);
-  if (!match) return { delivery_date: "", memo: text };
+  if (!match) return { delivery_date: "", ...splitCompanyMemo(text, knownCompanies) };
 
   const [, month, day, relativeOrDigitDay] = match;
   // DATE captures (month, day, relative); DATE_ANYWHERE captures (month, day, digitDay).
@@ -118,9 +156,12 @@ export function parseDeliveryTranscript(
     match === leading
       ? resolveDate(month, day, relativeOrDigitDay, today)
       : resolveDate(month, day ?? relativeOrDigitDay, undefined, today);
-  const memo = `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`
+  const rest = `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`
     .replace(/^[\s.,!?]+/, "")
     .replace(/\s+/g, " ")
     .trim();
-  return { delivery_date: date ? toDateKey(date) : "", memo };
+  return {
+    delivery_date: date ? toDateKey(date) : "",
+    ...splitCompanyMemo(rest, knownCompanies),
+  };
 }

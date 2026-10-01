@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DayDeliveryList } from "@/components/features/calendar/DayDeliveryList";
@@ -35,6 +35,14 @@ export function DeliveryDashboard() {
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
   const selectedKey = toDateKey(selectedDate);
+  const knownCompanies = useMemo(
+    () => [
+      ...new Set(
+        [...deliveries.byDate.values()].flat().map((r) => r.company_name).filter(Boolean),
+      ),
+    ],
+    [deliveries.byDate],
+  );
 
   const openDraft = useCallback(
     (values: DeliveryFormValues, transcript: string | null, editDeliveryNumber?: number) => {
@@ -45,8 +53,8 @@ export function DeliveryDashboard() {
   );
 
   /** Opens the modal prefilled with one saved delivery of the day. */
-  const handleEdit = ({ delivery_number, delivery_date, memo }: DeliveryRecord) =>
-    openDraft({ delivery_date, memo }, null, delivery_number);
+  const handleEdit = ({ delivery_number, delivery_date, company_name, memo }: DeliveryRecord) =>
+    openDraft({ delivery_date, company_name, memo }, null, delivery_number);
 
   const handleRecorded = useCallback(
     (result: RecordingResult) => {
@@ -54,16 +62,19 @@ export function DeliveryDashboard() {
         toast.info("인식된 음성이 없습니다. 다시 녹음해 주세요.");
         return;
       }
-      openDraft(parseDeliveryTranscript(result.segments), result.transcript);
+      openDraft(
+        parseDeliveryTranscript(result.segments, new Date(), knownCompanies),
+        result.transcript,
+      );
     },
-    [openDraft],
+    [openDraft, knownCompanies],
   );
 
   /** Empty memo for `date` (calendar "+" or the manual-entry fallback). */
   const handleAdd = useCallback(
     (date: Date) => {
       setSelectedDate(date);
-      openDraft({ delivery_date: toDateKey(date), memo: "" }, null);
+      openDraft({ delivery_date: toDateKey(date), company_name: "", memo: "" }, null);
     },
     [openDraft],
   );
@@ -94,7 +105,9 @@ export function DeliveryDashboard() {
   };
 
   const handleAutoSaved = (record: DeliveryRecord) => {
-    toast.success(`음성으로 저장됨: ${formatDateKeyKo(record.delivery_date)}`);
+    toast.success(
+      `음성으로 저장됨: ${formatDateKeyKo(record.delivery_date)} ${record.company_name}`,
+    );
     focusSavedDelivery(record);
   };
 
@@ -105,6 +118,7 @@ export function DeliveryDashboard() {
         onRecorded={handleRecorded}
         onManualEntry={() => handleAdd(selectedDate)}
         onAutoSaved={handleAutoSaved}
+        knownCompanies={knownCompanies}
       />
       <DeliveryCalendar
         month={month}
