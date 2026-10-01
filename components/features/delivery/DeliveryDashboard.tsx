@@ -9,21 +9,17 @@ import {
   DeliveryConfirmDialog,
   type DeliveryDraft,
 } from "@/components/features/delivery/DeliveryConfirmDialog";
+import { RepeatDeliverySheet } from "@/components/features/delivery/RepeatDeliverySheet";
 import { RecordingControl } from "@/components/features/recording/RecordingControl";
 import { RecordingInstructions } from "@/components/features/recording/RecordingInstructions";
 import { AccountFooter } from "@/components/layout/AccountFooter";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { useMonthlyDeliveries } from "@/hooks/useMonthlyDeliveries";
-import { formatDateKeyKo, startOfMonth, toDateKey, toMonthKey } from "@/lib/date";
+import { formatDateKeyKo, fromDateKey, startOfMonth, toDateKey, toMonthKey } from "@/lib/date";
 import { parseDeliveryTranscript } from "@/lib/speech/parse-delivery";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
-import type { DeliveryRecord } from "@/types/delivery";
+import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 import type { RecordingResult } from "@/types/recording";
-
-function dateFromKey(dateKey: string): Date {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
 
 /** Main screen: recording instructions → recording control → delivery calendar. */
 export function DeliveryDashboard() {
@@ -32,17 +28,20 @@ export function DeliveryDashboard() {
   const [month, setMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(today);
   const [draft, setDraft] = useState<DeliveryDraft | null>(null);
+  const [repeatSource, setRepeatSource] = useState<DeliveryRecord | null>(null);
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
   const selectedKey = toDateKey(selectedDate);
-  const knownCompanies = useMemo(
-    () => [
-      ...new Set(
-        [...deliveries.byDate.values()].flat().map((r) => r.company_name).filter(Boolean),
-      ),
-    ],
-    [deliveries.byDate],
-  );
+  /** 납품처 of this month → its latest 납품종류 (records are in date order). */
+  const knownCompanies = useMemo<KnownCompanies>(() => {
+    const companies = new Map<string, DeliveryRecord["delivery_type"]>();
+    for (const record of [...deliveries.byDate.values()].flat()) {
+      if (!record.company_name) continue;
+      const known = companies.get(record.company_name);
+      companies.set(record.company_name, record.delivery_type || known || "");
+    }
+    return companies;
+  }, [deliveries.byDate]);
 
   const openDraft = useCallback(
     (values: DeliveryFormValues, transcript: string | null, editDeliveryNumber?: number) => {
@@ -53,8 +52,14 @@ export function DeliveryDashboard() {
   );
 
   /** Opens the modal prefilled with one saved delivery of the day. */
-  const handleEdit = ({ delivery_number, delivery_date, company_name, memo }: DeliveryRecord) =>
-    openDraft({ delivery_date, company_name, memo }, null, delivery_number);
+  const handleEdit = ({
+    delivery_number,
+    delivery_date,
+    company_name,
+    delivery_type,
+    memo,
+  }: DeliveryRecord) =>
+    openDraft({ delivery_date, company_name, delivery_type, memo }, null, delivery_number);
 
   const handleRecorded = useCallback(
     (result: RecordingResult) => {
@@ -74,7 +79,10 @@ export function DeliveryDashboard() {
   const handleAdd = useCallback(
     (date: Date) => {
       setSelectedDate(date);
-      openDraft({ delivery_date: toDateKey(date), company_name: "", memo: "" }, null);
+      openDraft(
+        { delivery_date: toDateKey(date), company_name: "", delivery_type: "", memo: "" },
+        null,
+      );
     },
     [openDraft],
   );
@@ -86,7 +94,7 @@ export function DeliveryDashboard() {
 
   /** Shows the saved delivery's day and reloads that month. */
   const focusSavedDelivery = (record: DeliveryRecord) => {
-    const savedDate = dateFromKey(record.delivery_date);
+    const savedDate = fromDateKey(record.delivery_date);
     setSelectedDate(savedDate);
     setMonth(startOfMonth(savedDate));
     deliveries.refresh();
@@ -101,6 +109,12 @@ export function DeliveryDashboard() {
   const handleDeleted = () => {
     setDraft(null);
     toast.success("배달이 삭제되었습니다.");
+    deliveries.refresh();
+  };
+
+  const handleRepeated = (message: string) => {
+    setRepeatSource(null);
+    toast.success(message);
     deliveries.refresh();
   };
 
@@ -135,6 +149,7 @@ export function DeliveryDashboard() {
         loading={deliveries.loading}
         error={deliveries.error}
         onEdit={handleEdit}
+        onRepeat={setRepeatSource}
       />
       <AccountFooter />
       <DeliveryConfirmDialog
@@ -142,6 +157,11 @@ export function DeliveryDashboard() {
         onClose={() => setDraft(null)}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
+      />
+      <RepeatDeliverySheet
+        source={repeatSource}
+        onClose={() => setRepeatSource(null)}
+        onRepeated={handleRepeated}
       />
     </MobileShell>
   );

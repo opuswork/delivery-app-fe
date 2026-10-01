@@ -7,7 +7,7 @@ import { RecordingToolbar } from "@/components/features/recording/RecordingToolb
 import { SectionFrame } from "@/components/features/recording/SectionFrame";
 import { useHandsFreeAssistant } from "@/hooks/useHandsFreeAssistant";
 import { useSpeechRecorder } from "@/hooks/useSpeechRecorder";
-import type { DeliveryRecord } from "@/types/delivery";
+import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 import type { RecordingResult } from "@/types/recording";
 
 interface RecordingControlProps {
@@ -16,7 +16,7 @@ interface RecordingControlProps {
   /** A delivery saved by hands-free mode without the confirmation dialog. */
   onAutoSaved: (record: DeliveryRecord) => void;
   /** 납품처 from earlier deliveries, for parsing multi-word names. */
-  knownCompanies: readonly string[];
+  knownCompanies: KnownCompanies;
 }
 
 const UNSUPPORTED_MESSAGE =

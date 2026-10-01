@@ -1,3 +1,5 @@
+import type { DeliveryType } from "@/lib/constants/delivery";
+
 export type RecordingStatus =
   | "unsupported"
   | "idle"
@@ -18,5 +20,6 @@ export interface RecordingResult {
 export interface ParsedDelivery {
   delivery_date: string;
   company_name: string;
+  delivery_type: DeliveryType | "";
   memo: string;
 }

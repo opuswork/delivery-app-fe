@@ -12,6 +12,7 @@ import {
 import { cancelSpeech, speak } from "@/lib/speech/tts";
 import { findWakeWord } from "@/lib/speech/wake-word";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
+import type { KnownCompanies } from "@/types/delivery";
 import type {
   SpeechRecognitionErrorEventLike,
   SpeechRecognitionEventLike,
@@ -45,7 +46,7 @@ export interface HandsFreeCallbacks {
   /** Persists the delivery; must throw when saving fails. */
   save: (values: DeliveryFormValues) => Promise<void>;
   /** 납품처 from earlier deliveries (keeps "우리 식당" together). */
-  knownCompanies: () => readonly string[];
+  knownCompanies: () => KnownCompanies;
 }
 
 /** 을/를 depending on whether the word ends in a final consonant. */
