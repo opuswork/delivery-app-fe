@@ -5,9 +5,10 @@ import type { ParsedDelivery } from "@/types/recording";
 const FIELD_LABELS: Record<string, string> = {
   delivery_date: "납품일",
   company_name: "납품처",
+  delivery_type: "납품종류",
   memo: "메모",
 };
-const LABEL_ORDER = ["납품일", "납품처", "메모"];
+const LABEL_ORDER = ["납품일", "납품처", "납품종류", "메모"];
 
 export type DeliveryCheck =
   | { ok: true; values: DeliveryFormValues }
@@ -26,9 +27,14 @@ export function checkParsedDelivery(parsed: ParsedDelivery): DeliveryCheck {
   };
 }
 
-/** "10월 7일, 홈플러스, 1급진간장 1.8리터 10통" — read back after saving. */
+/** "10월 7일, 홈플러스, 간장, 1급진간장 1.8리터 10통" — read back after saving. */
 export function describeDelivery(values: DeliveryFormValues): string {
-  return [formatDateKeyKo(values.delivery_date), values.company_name, values.memo]
+  return [
+    formatDateKeyKo(values.delivery_date),
+    values.company_name,
+    values.delivery_type,
+    values.memo,
+  ]
     .filter(Boolean)
     .join(", ");
 }

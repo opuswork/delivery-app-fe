@@ -1,5 +1,10 @@
 import { apiRequest } from "@/lib/api-client";
-import type { DeliveryRecord, DeliveryRequest } from "@/types/delivery";
+import type {
+  DeliveryRecord,
+  DeliveryRequest,
+  RepeatDeliveryRequest,
+  RepeatDeliveryResult,
+} from "@/types/delivery";
 
 /** @param month yyyy-mm */
 export function listDeliveries(
@@ -24,6 +29,10 @@ export function updateDelivery(
     method: "PUT",
     body,
   });
+}
+
+export function repeatDelivery(body: RepeatDeliveryRequest): Promise<RepeatDeliveryResult> {
+  return apiRequest<RepeatDeliveryResult>("/deliveries/repeat", { method: "POST", body });
 }
 
 export function deleteDelivery(deliveryNumber: number): Promise<void> {

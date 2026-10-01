@@ -1,10 +1,13 @@
+import type { DeliveryType } from "@/lib/constants/delivery";
 import { toDateKey } from "@/lib/date";
+import type { KnownCompanies } from "@/types/delivery";
 import type { ParsedDelivery } from "@/types/recording";
 
 /**
  * Turns a spoken delivery ("납품일 -> 납품처 -> 메모 -> 끝") into fields:
  * "10월 7일 홈플러스 1급진간장 1.8리터 10통 끝" →
- * { delivery_date: "2026-10-07", company_name: "홈플러스", memo: "1급진간장 1.8리터 10통" }.
+ * { delivery_date: "2026-10-07", company_name: "홈플러스", delivery_type: "간장",
+ *   memo: "1급진간장 1.8리터 10통" }.
  * The result is a best-effort suggestion: the user always confirms/edits it.
  */
 
@@ -28,6 +31,31 @@ const DATE = new RegExp(
 const DATE_ANYWHERE = new RegExp(
   String.raw`(?:^|\s)(?:${MONTH}\s*${DAY}|(\d{1,2})\s*일)${DATE_END}`,
 );
+
+/** Words that name a 납품종류 when spoken anywhere in the delivery. */
+const TYPE_KEYWORDS: [DeliveryType, RegExp][] = [
+  ["간장", /간장/],
+  ["두부", /두부/],
+  ["런", /(?:^|\s)런(?=$|\s|\d|[.,!?])|요구르트|요거트|야쿠르트/],
+];
+
+/**
+ * 납품종류: the earliest type keyword in the text ("1급진간장" → 간장), otherwise
+ * the type last saved with this 납품처.
+ */
+function inferDeliveryType(
+  text: string,
+  companyName: string,
+  knownCompanies: KnownCompanies,
+): DeliveryType | "" {
+  const spoken = TYPE_KEYWORDS.map(([type, pattern]) => ({
+    type,
+    index: text.search(pattern),
+  }))
+    .filter(({ index }) => index >= 0)
+    .sort((a, b) => a.index - b.index)[0];
+  return spoken?.type ?? knownCompanies.get(companyName) ?? "";
+}
 
 /** Trailing words people say to finish a recording ("… 10통 끝!"). */
 const CLOSING_WORDS = /(?:^|\s)(?:끝|이상)(?:입니다)?[.!]*$/;
@@ -113,10 +141,10 @@ function splitAfterLetters(text: string, count: number): [string, string] {
  */
 function splitCompanyMemo(
   rest: string,
-  knownCompanies: readonly string[],
+  knownCompanies: KnownCompanies,
 ): { company_name: string; memo: string } {
   const compactRest = rest.replace(/\s/g, "");
-  const known = knownCompanies
+  const known = [...knownCompanies.keys()]
     .map((name) => ({ name: name.trim(), compact: name.replace(/\s/g, "") }))
     .filter(({ compact }) => compact && compactRest.startsWith(compact))
     .sort((a, b) => b.compact.length - a.compact.length)[0];
@@ -134,21 +162,30 @@ function splitCompanyMemo(
 /**
  * The date is expected first; if it is not, the first unambiguous date in
  * the sentence is used. The rest (without "끝") is 납품처 followed by the memo.
+ * 납품종류 comes from a keyword in the sentence or the 납품처's last type.
  *
- * @param knownCompanies 납품처 from earlier deliveries, used to keep
- *   multi-word names ("우리 식당") together
+ * @param knownCompanies 납품처 from earlier deliveries with their last 납품종류,
+ *   used to keep multi-word names ("우리 식당") together and to fill the type
  */
 export function parseDeliveryTranscript(
   segments: readonly string[],
   now: Date = new Date(),
-  knownCompanies: readonly string[] = [],
+  knownCompanies: KnownCompanies = new Map(),
 ): ParsedDelivery {
   const today = startOfDay(now);
   const text = normalize(segments.join(" "));
 
   const leading = DATE.exec(text);
   const match = leading?.index === 0 ? leading : DATE_ANYWHERE.exec(text);
-  if (!match) return { delivery_date: "", ...splitCompanyMemo(text, knownCompanies) };
+  const withType = (delivery_date: string, rest: string): ParsedDelivery => {
+    const fields = splitCompanyMemo(rest, knownCompanies);
+    return {
+      delivery_date,
+      ...fields,
+      delivery_type: inferDeliveryType(text, fields.company_name, knownCompanies),
+    };
+  };
+  if (!match) return withType("", text);
 
   const [, month, day, relativeOrDigitDay] = match;
   // DATE captures (month, day, relative); DATE_ANYWHERE captures (month, day, digitDay).
@@ -160,8 +197,5 @@ export function parseDeliveryTranscript(
     .replace(/^[\s.,!?]+/, "")
     .replace(/\s+/g, " ")
     .trim();
-  return {
-    delivery_date: date ? toDateKey(date) : "",
-    ...splitCompanyMemo(rest, knownCompanies),
-  };
+  return withType(date ? toDateKey(date) : "", rest);
 }

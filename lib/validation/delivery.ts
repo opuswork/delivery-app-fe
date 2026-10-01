@@ -1,11 +1,12 @@
 import { z } from "zod";
 
+import { DELIVERY_TYPES } from "@/lib/constants/delivery";
 import { isValidDateKey } from "@/lib/date";
 
 /** Mirrors the backend limit for the memo column. */
 export const MAX_MEMO_LENGTH = 1000;
 
-/** 납품일 + 납품처 (required) + free-text memo (optional). */
+/** 납품일 + 납품처 + 납품종류 (required) + free-text memo (optional). */
 export const deliverySchema = z.object({
   delivery_date: z
     .string()
@@ -15,10 +16,17 @@ export const deliverySchema = z.object({
     .trim()
     .min(1, "납품처를 입력해 주세요.")
     .max(100, "납품처는 100자 이하여야 합니다."),
+  // "" is the dropdown's unselected state; it never passes validation.
+  delivery_type: z
+    .enum(["", ...DELIVERY_TYPES], "납품종류를 선택해 주세요.")
+    .refine((value) => value !== "", "납품종류를 선택해 주세요."),
   memo: z
     .string()
     .trim()
     .max(MAX_MEMO_LENGTH, `메모는 ${MAX_MEMO_LENGTH}자 이하여야 합니다.`),
 });
 
-export type DeliveryFormValues = z.infer<typeof deliverySchema>;
+/** What the form holds: 납품종류 may still be unselected (""). */
+export type DeliveryFormValues = z.input<typeof deliverySchema>;
+/** What passes validation: every required field filled in. */
+export type ValidDelivery = z.output<typeof deliverySchema>;

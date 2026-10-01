@@ -1,9 +1,33 @@
 import { Badge } from "@/components/ui/badge";
+import { deliveryTypeColor } from "@/lib/constants/delivery";
+import type { DeliveryRecord } from "@/types/delivery";
 
-export function DeliveryBadge({ count }: { count: number }) {
+/** Badges that fit in a day cell; the rest are summed up as "+N". */
+const MAX_BADGES = 2;
+
+/** 납품처 in its 납품종류 colour (신선유통 on blue for 런, …). */
+export function DeliveryBadge({ record }: { record: DeliveryRecord }) {
   return (
-    <Badge className="h-6 rounded-lg bg-brand-violet-mist px-1.5 text-xs font-bold text-brand-violet">
-      배달{count}
+    <Badge
+      className="h-5 w-full max-w-full justify-center rounded-md px-1 text-[11px] font-bold text-white"
+      style={{ backgroundColor: deliveryTypeColor(record.delivery_type) }}
+    >
+      <span className="truncate">{record.company_name || "배달"}</span>
     </Badge>
+  );
+}
+
+/** The day's deliveries as stacked 납품처 badges. */
+export function DeliveryBadgeList({ records }: { records: readonly DeliveryRecord[] }) {
+  const hidden = records.length - MAX_BADGES;
+  return (
+    <span className="flex w-full flex-col items-center gap-0.5 px-0.5">
+      {records.slice(0, MAX_BADGES).map((record) => (
+        <DeliveryBadge key={record.delivery_number} record={record} />
+      ))}
+      {hidden > 0 ? (
+        <span className="text-[11px] leading-none font-bold text-slate-500">+{hidden}</span>
+      ) : null}
+    </span>
   );
 }

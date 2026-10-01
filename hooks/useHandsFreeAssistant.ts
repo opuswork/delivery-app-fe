@@ -6,13 +6,13 @@ import { createDelivery } from "@/lib/api/deliveries";
 import { HandsFreeEngine, type HandsFreeStatus } from "@/lib/speech/hands-free-engine";
 import { getRecognitionConstructor } from "@/lib/speech/recognition";
 import { isSpeechSynthesisSupported, primeSpeech } from "@/lib/speech/tts";
-import type { DeliveryRecord } from "@/types/delivery";
+import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 
 const noopSubscribe = () => () => {};
 
 interface Options {
   onSaved: (record: DeliveryRecord) => void;
-  knownCompanies: readonly string[];
+  knownCompanies: KnownCompanies;
 }
 
 /** React wrapper around HandsFreeEngine: state, screen wake lock and cleanup. */

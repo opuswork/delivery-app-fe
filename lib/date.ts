@@ -53,3 +53,13 @@ export function formatDateKeyKo(dateKey: string): string {
   const [, m, d] = dateKey.split("-").map(Number);
   return `${m}월 ${d}일`;
 }
+
+/** yyyy-mm-dd → local calendar date. */
+export function fromDateKey(dateKey: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function addDays(date: Date, amount: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
