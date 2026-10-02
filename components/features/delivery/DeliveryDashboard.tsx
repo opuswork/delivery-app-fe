@@ -11,14 +11,18 @@ import {
 } from "@/components/features/delivery/DeliveryConfirmDialog";
 import { BulkEditDeliverySheet } from "@/components/features/delivery/BulkEditDeliverySheet";
 import { RepeatDeliverySheet } from "@/components/features/delivery/RepeatDeliverySheet";
+import { UnsavedRecordingList } from "@/components/features/delivery/UnsavedRecordingList";
 import { RecordingControl } from "@/components/features/recording/RecordingControl";
 import { RecordingInstructions } from "@/components/features/recording/RecordingInstructions";
 import { AccountFooter } from "@/components/layout/AccountFooter";
 import { MobileShell } from "@/components/layout/MobileShell";
+import { useAuth } from "@/hooks/useAuth";
 import { useMonthlyDeliveries } from "@/hooks/useMonthlyDeliveries";
+import { useUnsavedRecordings } from "@/hooks/useUnsavedRecordings";
 import { DEFAULT_BADGE_COLOR } from "@/lib/constants/delivery";
 import { formatDateKeyKo, fromDateKey, startOfMonth, toDateKey, toMonthKey } from "@/lib/date";
 import { parseDeliveryTranscript } from "@/lib/speech/parse-delivery";
+import type { UnsavedRecording } from "@/lib/unsaved-recordings";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
 import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 import type { RecordingResult } from "@/types/recording";
@@ -34,6 +38,8 @@ export function DeliveryDashboard() {
   const [bulkEditSource, setBulkEditSource] = useState<DeliveryRecord | null>(null);
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
+  const { user } = useAuth();
+  const unsaved = useUnsavedRecordings(user?.id);
   const selectedKey = toDateKey(selectedDate);
   /** 납품처 of this month → its latest badge colour (records are in date order). */
   const knownCompanies = useMemo<KnownCompanies>(() => {
@@ -47,9 +53,14 @@ export function DeliveryDashboard() {
   }, [deliveries.byDate]);
 
   const openDraft = useCallback(
-    (values: DeliveryFormValues, transcript: string | null, editDeliveryNumber?: number) => {
+    (
+      values: DeliveryFormValues,
+      transcript: string | null,
+      editDeliveryNumber?: number,
+      unsavedId?: string,
+    ) => {
       draftSeq.current += 1;
-      setDraft({ id: draftSeq.current, values, transcript, editDeliveryNumber });
+      setDraft({ id: draftSeq.current, values, transcript, editDeliveryNumber, unsavedId });
     },
     [],
   );
@@ -113,6 +124,7 @@ export function DeliveryDashboard() {
   };
 
   const handleSaved = (record: DeliveryRecord) => {
+    if (draft?.unsavedId) unsaved.remove(draft.unsavedId);
     setDraft(null);
     toast.success(draft?.editDeliveryNumber ? "배달이 수정되었습니다." : "배달이 저장되었습니다.");
     focusSavedDelivery(record);
@@ -136,6 +148,29 @@ export function DeliveryDashboard() {
     deliveries.refresh();
   };
 
+  const handleKeptForLater = useCallback(
+    (recording: UnsavedRecording) => {
+      unsaved.add(recording);
+      toast.warning("저장하지 못한 녹음을 보관했습니다. 화면에서 고쳐서 저장해 주세요.");
+    },
+    [unsaved],
+  );
+
+  const handleFixUnsaved = (recording: UnsavedRecording) =>
+    openDraft(
+      { ...recording.values, badge_color: recording.values.badge_color || DEFAULT_BADGE_COLOR },
+      recording.transcript,
+      undefined,
+      recording.id,
+    );
+
+  const handleDiscardUnsaved = (recording: UnsavedRecording) => {
+    unsaved.remove(recording.id);
+    toast("저장 안 된 녹음을 삭제했습니다.", {
+      action: { label: "되돌리기", onClick: () => unsaved.add(recording) },
+    });
+  };
+
   const handleAutoSaved = (record: DeliveryRecord) => {
     toast.success(
       `음성으로 저장됨: ${formatDateKeyKo(record.delivery_date)} ${record.company_name}`,
@@ -150,7 +185,13 @@ export function DeliveryDashboard() {
         onRecorded={handleRecorded}
         onManualEntry={() => handleAdd(selectedDate)}
         onAutoSaved={handleAutoSaved}
+        onKeptForLater={handleKeptForLater}
         knownCompanies={knownCompanies}
+      />
+      <UnsavedRecordingList
+        recordings={unsaved.items}
+        onFix={handleFixUnsaved}
+        onDiscard={handleDiscardUnsaved}
       />
       <DeliveryCalendar
         month={month}
