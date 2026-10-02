@@ -18,10 +18,13 @@ export interface DeliveryDraft {
   transcript: string | null;
   /** The saved delivery being edited (edit mode). */
   editDeliveryNumber?: number;
+  /** The kept hands-free recording this draft completes (removed once saved). */
+  unsavedId?: string;
 }
 
 function titleFor(draft: DeliveryDraft | null): string {
   if (draft?.editDeliveryNumber) return "배달 수정";
+  if (draft?.unsavedId) return "저장 안 된 녹음";
   if (draft?.transcript) return "배달 내용 확인";
   return "배달 메모 추가";
 }

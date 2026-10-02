@@ -6,17 +6,21 @@ import { createDelivery } from "@/lib/api/deliveries";
 import { HandsFreeEngine, type HandsFreeStatus } from "@/lib/speech/hands-free-engine";
 import { getRecognitionConstructor } from "@/lib/speech/recognition";
 import { isSpeechSynthesisSupported, primeSpeech } from "@/lib/speech/tts";
+import type { UnsavedRecording } from "@/lib/unsaved-recordings";
+import { newUnsavedRecording } from "@/lib/unsaved-recordings";
 import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 
 const noopSubscribe = () => () => {};
 
 interface Options {
   onSaved: (record: DeliveryRecord) => void;
+  /** A recording that could not be saved, kept to be fixed later. */
+  onKeptForLater: (recording: UnsavedRecording) => void;
   knownCompanies: KnownCompanies;
 }
 
 /** React wrapper around HandsFreeEngine: state, screen wake lock and cleanup. */
-export function useHandsFreeAssistant({ onSaved, knownCompanies }: Options) {
+export function useHandsFreeAssistant({ onSaved, onKeptForLater, knownCompanies }: Options) {
   const supported = useSyncExternalStore(
     noopSubscribe,
     () => getRecognitionConstructor() !== null && isSpeechSynthesisSupported(),
@@ -27,13 +31,15 @@ export function useHandsFreeAssistant({ onSaved, knownCompanies }: Options) {
   const [error, setError] = useState<string | null>(null);
   const engineRef = useRef<HandsFreeEngine | null>(null);
   const onSavedRef = useRef(onSaved);
+  const onKeptForLaterRef = useRef(onKeptForLater);
   const knownCompaniesRef = useRef(knownCompanies);
   const active = status !== "off";
 
   useEffect(() => {
     onSavedRef.current = onSaved;
+    onKeptForLaterRef.current = onKeptForLater;
     knownCompaniesRef.current = knownCompanies;
-  }, [onSaved, knownCompanies]);
+  }, [onSaved, onKeptForLater, knownCompanies]);
 
   const enable = useCallback(() => {
     setError(null);
@@ -44,6 +50,8 @@ export function useHandsFreeAssistant({ onSaved, knownCompanies }: Options) {
       onError: setError,
       save: async (values) => onSavedRef.current(await createDelivery(values)),
       knownCompanies: () => knownCompaniesRef.current,
+      keepForLater: (transcript, values, reason) =>
+        onKeptForLaterRef.current(newUnsavedRecording(transcript, values, reason)),
     });
     if (!engineRef.current.start()) {
       setError("이 브라우저는 음성 인식을 지원하지 않습니다.");

@@ -2,7 +2,7 @@ import {
   checkParsedDelivery,
   describeDelivery,
 } from "@/lib/speech/check-delivery";
-import { endsWithClosingWord } from "@/lib/speech/closing-word";
+import { endsWithClosingWord, stripClosingWord } from "@/lib/speech/closing-word";
 import { parseDeliveryTranscript } from "@/lib/speech/parse-delivery";
 import {
   createRecognition,
@@ -30,12 +30,17 @@ export type HandsFreeStatus =
   | "announcing"; // reading back the result or asking again
 
 /**
- * Silence after a date + memo before it is saved without "끝". Longer than a
- * thinking pause, because any memo text already counts as complete.
+ * Silence before finishing without "끝". People are taught to end with "끝",
+ * so this is only a fallback and is long enough for pauses mid-memo.
  */
-const SAVE_AFTER_SILENCE_MS = 3500;
-/** Silence after an incomplete delivery before asking again. */
-const GIVE_UP_AFTER_SILENCE_MS = 5000;
+const SAVE_AFTER_SILENCE_MS = 6000;
+/** Silence after an incomplete delivery before asking for the missing part. */
+const GIVE_UP_AFTER_SILENCE_MS = 6000;
+/**
+ * A dictation always finishes after this long, even if background noise keeps
+ * the recogniser busy, so the app never stays on "듣고 있어요…".
+ */
+const MAX_DICTATION_MS = 30_000;
 const MAX_ATTEMPTS = 2;
 /**
  * "끝" heard in interim (not yet final) speech: save after this short pause.
@@ -54,6 +59,15 @@ export interface HandsFreeCallbacks {
   save: (values: DeliveryFormValues) => Promise<void>;
   /** 납품처 from earlier deliveries (keeps "우리 식당" together). */
   knownCompanies: () => KnownCompanies;
+  /**
+   * A recording that could not be saved (납품일/납품처 still missing after
+   * asking, or the save failed): kept so it can be fixed and saved later.
+   */
+  keepForLater: (
+    transcript: string,
+    values: DeliveryFormValues,
+    reason: "incomplete" | "save-failed",
+  ) => void;
 }
 
 /** 을/를 depending on whether the word ends in a final consonant. */
@@ -77,6 +91,7 @@ export class HandsFreeEngine {
   private attempts = 0;
   private silenceTimer: number | null = null;
   private restartTimer: number | null = null;
+  private dictationTimer: number | null = null;
   /** Bumped on stop() so in-flight async steps can tell they are stale. */
   private run = 0;
 
@@ -129,12 +144,27 @@ export class HandsFreeEngine {
 
   private startDictation(): void {
     this.segments = [];
+    this.resumeDictation();
+  }
+
+  /**
+   * Listens again, keeping what was already heard (asking for a missing part).
+   * The earlier attempt's "끝" is dropped so it does not end the new one.
+   */
+  private resumeDictation(): void {
+    this.segments = this.segments.map(stripClosingWord).filter(Boolean);
     this.sessionText = "";
     this.pendingText = "";
-    this.callbacks.onLiveText("");
+    this.callbacks.onLiveText(this.segments.join(" "));
     this.setStatus("dictating");
     this.startRecognition();
+    this.startDictationLimit();
     this.scheduleEvaluation();
+  }
+
+  private startDictationLimit(): void {
+    if (this.dictationTimer !== null) window.clearTimeout(this.dictationTimer);
+    this.dictationTimer = window.setTimeout(() => void this.evaluate(), MAX_DICTATION_MS);
   }
 
   private startRecognition(): void {
@@ -174,6 +204,7 @@ export class HandsFreeEngine {
       this.pendingText = pending;
       this.setStatus("dictating");
       this.callbacks.onLiveText([rest, pending].filter(Boolean).join(" "));
+      this.startDictationLimit();
       this.scheduleEvaluation();
       return;
     }
@@ -251,19 +282,29 @@ export class HandsFreeEngine {
     const run = this.run;
     this.recognition?.abort();
 
-    const check = checkParsedDelivery(this.parse(this.segments));
+    const parsed = this.parse(this.segments);
+    const transcript = this.segments.join(" ");
+    const check = checkParsedDelivery(parsed);
     if (!check.ok) {
       this.attempts += 1;
       const retry = this.attempts < MAX_ATTEMPTS;
+      const heardNothing = this.segments.length === 0;
+      const missing = check.missing.join(", ");
       const last = check.missing[check.missing.length - 1] ?? "";
-      const problem =
-        this.segments.length === 0
-          ? "아무 말도 듣지 못했어요."
-          : `${check.missing.join(", ")}${objectParticle(last)} 못 들었어요.`;
+      let message: string;
+      if (heardNothing) {
+        message = `아무 말도 듣지 못했어요. ${retry ? "다시 말씀해 주세요." : "처음부터 다시 해 주세요."}`;
+      } else if (retry) {
+        // Keep what was heard; only the missing part needs to be said.
+        message = `${missing}${objectParticle(last)} 못 들었어요. ${missing}만 말씀해 주세요.`;
+      } else {
+        this.callbacks.keepForLater(transcript, parsed, "incomplete");
+        message = `${missing}${objectParticle(last)} 못 들어서 저장 안 된 녹음에 보관했어요. 화면에서 고쳐서 저장해 주세요.`;
+      }
       this.setStatus("announcing");
-      await speak(`${problem} ${retry ? "다시 말씀해 주세요." : "처음부터 다시 해 주세요."}`);
+      await speak(message);
       if (run !== this.run) return;
-      if (retry) this.startDictation();
+      if (retry) this.resumeDictation();
       else this.listenForWakeWord();
       return;
     }
@@ -274,7 +315,8 @@ export class HandsFreeEngine {
       await this.callbacks.save(check.values);
       message = `저장했습니다. ${describeDelivery(check.values)}`;
     } catch {
-      message = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+      this.callbacks.keepForLater(transcript, parsed, "save-failed");
+      message = "저장하지 못해서 저장 안 된 녹음에 보관했어요. 나중에 화면에서 저장해 주세요.";
     }
     if (run !== this.run) return;
     this.setStatus("announcing");
@@ -289,7 +331,9 @@ export class HandsFreeEngine {
   private clearTimers(): void {
     if (this.silenceTimer !== null) window.clearTimeout(this.silenceTimer);
     if (this.restartTimer !== null) window.clearTimeout(this.restartTimer);
+    if (this.dictationTimer !== null) window.clearTimeout(this.dictationTimer);
     this.silenceTimer = null;
     this.restartTimer = null;
+    this.dictationTimer = null;
   }
 }

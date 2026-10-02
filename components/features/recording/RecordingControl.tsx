@@ -8,6 +8,7 @@ import { SectionFrame } from "@/components/features/recording/SectionFrame";
 import { cn } from "@/lib/utils";
 import { useHandsFreeAssistant } from "@/hooks/useHandsFreeAssistant";
 import { useSpeechRecorder } from "@/hooks/useSpeechRecorder";
+import type { UnsavedRecording } from "@/lib/unsaved-recordings";
 import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 import type { RecordingResult } from "@/types/recording";
 
@@ -16,6 +17,8 @@ interface RecordingControlProps {
   onManualEntry: () => void;
   /** A delivery saved by hands-free mode without the confirmation dialog. */
   onAutoSaved: (record: DeliveryRecord) => void;
+  /** A hands-free recording that could not be saved, kept to be fixed later. */
+  onKeptForLater: (recording: UnsavedRecording) => void;
   /** 납품처 from earlier deliveries, for parsing multi-word names. */
   knownCompanies: KnownCompanies;
 }
@@ -32,10 +35,15 @@ export function RecordingControl({
   onRecorded,
   onManualEntry,
   onAutoSaved,
+  onKeptForLater,
   knownCompanies,
 }: RecordingControlProps) {
   const recorder = useSpeechRecorder({ onComplete: onRecorded });
-  const handsFree = useHandsFreeAssistant({ onSaved: onAutoSaved, knownCompanies });
+  const handsFree = useHandsFreeAssistant({
+    onSaved: onAutoSaved,
+    onKeptForLater,
+    knownCompanies,
+  });
   const { status } = recorder;
   const recorderBusy = status !== "idle" && status !== "unsupported" && status !== "error";
 
