@@ -1,5 +1,6 @@
 import { DEFAULT_BADGE_COLOR } from "@/lib/constants/delivery";
 import { toDateKey } from "@/lib/date";
+import { stripClosingWord } from "@/lib/speech/closing-word";
 import type { KnownCompanies } from "@/types/delivery";
 import type { ParsedDelivery } from "@/types/recording";
 
@@ -32,15 +33,9 @@ const DATE_ANYWHERE = new RegExp(
   String.raw`(?:^|\s)(?:${MONTH}\s*${DAY}|(\d{1,2})\s*일)${DATE_END}`,
 );
 
-/** Trailing words people say to finish a recording ("… 10통 끝!"). */
-const CLOSING_WORDS = /(?:^|\s)(?:끝|이상)(?:입니다)?[.!]*$/;
-
+/** Collapses spaces and drops the closing "끝" ("… 10통끝!" → "… 10통"). */
 function normalize(text: string): string {
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(CLOSING_WORDS, "")
-    .trim();
+  return stripClosingWord(text.replace(/\s+/g, " "));
 }
 
 function spokenNumber(word: string): number {

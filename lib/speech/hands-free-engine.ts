@@ -2,10 +2,12 @@ import {
   checkParsedDelivery,
   describeDelivery,
 } from "@/lib/speech/check-delivery";
+import { endsWithClosingWord } from "@/lib/speech/closing-word";
 import { parseDeliveryTranscript } from "@/lib/speech/parse-delivery";
 import {
   createRecognition,
   isBenignSpeechError,
+  mergeFinalResults,
   readSessionResults,
   speechErrorMessage,
 } from "@/lib/speech/recognition";
@@ -35,9 +37,14 @@ const SAVE_AFTER_SILENCE_MS = 3500;
 /** Silence after an incomplete delivery before asking again. */
 const GIVE_UP_AFTER_SILENCE_MS = 5000;
 const MAX_ATTEMPTS = 2;
+/**
+ * "끝" heard in interim (not yet final) speech: save after this short pause.
+ * Android can take seconds to finalise a short word, and background noise
+ * keeps sending interim results, which would otherwise postpone the save.
+ */
+const SAVE_AFTER_INTERIM_CLOSING_MS = 500;
 /** Short pause before restarting an ended session (lets the engine settle). */
 const RESTART_DELAY_MS = 30;
-const CLOSING_WORD = /(?:^|\s)(?:끝|이상)(?:입니다)?[.!]?$/;
 
 export interface HandsFreeCallbacks {
   onStatus: (status: HandsFreeStatus) => void;
@@ -65,6 +72,8 @@ export class HandsFreeEngine {
   private recognition: SpeechRecognitionLike | null = null;
   private segments: string[] = [];
   private sessionText = "";
+  /** The current session's interim (not yet final) text. */
+  private pendingText = "";
   private attempts = 0;
   private silenceTimer: number | null = null;
   private restartTimer: number | null = null;
@@ -111,6 +120,7 @@ export class HandsFreeEngine {
   private listenForWakeWord(): void {
     this.segments = [];
     this.sessionText = "";
+    this.pendingText = "";
     this.attempts = 0;
     this.callbacks.onLiveText("");
     this.setStatus("waiting");
@@ -120,6 +130,7 @@ export class HandsFreeEngine {
   private startDictation(): void {
     this.segments = [];
     this.sessionText = "";
+    this.pendingText = "";
     this.callbacks.onLiveText("");
     this.setStatus("dictating");
     this.startRecognition();
@@ -136,30 +147,33 @@ export class HandsFreeEngine {
 
   private handleResult(event: SpeechRecognitionEventLike): void {
     const { final, pending } = readSessionResults(event);
+    const stripWake = (text: string) => findWakeWord(text)?.rest ?? text;
 
     if (this.status === "waiting") {
       // Act on final results only, so "오케이 배달 10월 7일…" in one breath is kept whole.
       const wake = final ? findWakeWord(final) : null;
-      if (wake) void this.onWake(wake.rest);
+      if (wake) void this.onWake(wake.rest, stripWake(pending));
       return;
     }
     if (this.status !== "dictating") return;
 
-    const stripWake = (text: string) => findWakeWord(text)?.rest ?? text;
     if (final) this.sessionText = stripWake(final);
-    const live = [...this.segments, this.sessionText, stripWake(pending)];
+    this.pendingText = stripWake(pending);
+    const live = [...this.segments, this.sessionText, this.pendingText];
     this.callbacks.onLiveText(live.filter(Boolean).join(" "));
     this.scheduleEvaluation();
   }
 
-  private async onWake(rest: string): Promise<void> {
+  /** `pending`: interim speech in the same event (e.g. a trailing "끝"). */
+  private async onWake(rest: string, pending: string): Promise<void> {
     if (rest) {
       // Delivery spoken in the same breath: skip the prompt. The session keeps
       // running, so its (growing) text stays the session text, not a segment.
       this.segments = [];
       this.sessionText = rest;
+      this.pendingText = pending;
       this.setStatus("dictating");
-      this.callbacks.onLiveText(rest);
+      this.callbacks.onLiveText([rest, pending].filter(Boolean).join(" "));
       this.scheduleEvaluation();
       return;
     }
@@ -188,10 +202,17 @@ export class HandsFreeEngine {
     this.stop();
   }
 
-  /** Adds the finished session's text once (Android can repeat a session's result). */
-  private commitSession(): void {
-    const text = this.sessionText.trim();
+  /**
+   * Adds the session's text once (Android can repeat a session's result).
+   * With `includePending`, interim speech counts too: used when saving on an
+   * interim "끝", so the words just before it are not lost.
+   */
+  private commitSession({ includePending = false } = {}): void {
+    const text = (
+      includePending ? mergeFinalResults([this.sessionText, this.pendingText]) : this.sessionText
+    ).trim();
     this.sessionText = "";
+    this.pendingText = "";
     if (text && text !== this.segments[this.segments.length - 1]) {
       this.segments.push(text);
     }
@@ -201,19 +222,32 @@ export class HandsFreeEngine {
     return [...this.segments, this.sessionText].filter(Boolean);
   }
 
+  /**
+   * Where "끝" was heard: at the end of the final text (anything interim after
+   * it is noise), or so far only in interim speech.
+   */
+  private closingWord(): "final" | "interim" | null {
+    const spoken = this.spokenSoFar();
+    if (endsWithClosingWord(spoken.join(" "))) return "final";
+    const withPending = mergeFinalResults([...spoken, this.pendingText].filter(Boolean));
+    return this.pendingText && endsWithClosingWord(withPending, { interim: true })
+      ? "interim"
+      : null;
+  }
+
   private scheduleEvaluation(): void {
     if (this.silenceTimer !== null) window.clearTimeout(this.silenceTimer);
-    const spoken = this.spokenSoFar();
-    const complete = checkParsedDelivery(this.parse(spoken)).ok;
-    const saidDone = CLOSING_WORD.test(spoken.join(" "));
-    const delay = saidDone ? 0 : complete ? SAVE_AFTER_SILENCE_MS : GIVE_UP_AFTER_SILENCE_MS;
+    const complete = checkParsedDelivery(this.parse(this.spokenSoFar())).ok;
+    let delay = complete ? SAVE_AFTER_SILENCE_MS : GIVE_UP_AFTER_SILENCE_MS;
+    if (this.closingWord() === "final") delay = 0;
+    else if (this.closingWord() === "interim") delay = SAVE_AFTER_INTERIM_CLOSING_MS;
     this.silenceTimer = window.setTimeout(() => void this.evaluate(), delay);
   }
 
   private async evaluate(): Promise<void> {
     if (this.status !== "dictating") return;
     this.clearTimers();
-    this.commitSession();
+    this.commitSession({ includePending: this.closingWord() === "interim" });
     const run = this.run;
     this.recognition?.abort();
 
