@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { HandsFreeStatus } from "@/lib/speech/hands-free-engine";
+import { cn } from "@/lib/utils";
 
 const STATUS_TEXT: Record<Exclude<HandsFreeStatus, "off">, string> = {
   waiting: "\"오케이 배달\"이라고 말하세요",
@@ -18,6 +19,7 @@ interface HandsFreeToggleProps {
   error: string | null;
   disabled?: boolean;
   onToggle: (enabled: boolean) => void;
+  className?: string;
 }
 
 /** "오케이 배달" hands-free switch with the assistant's current status. */
@@ -28,16 +30,17 @@ export function HandsFreeToggle({
   error,
   disabled,
   onToggle,
+  className,
 }: HandsFreeToggleProps) {
   const active = status !== "off";
 
   return (
-    <Card className="rounded-3xl bg-white py-4 shadow-sm ring-0">
-      <CardContent className="flex flex-col gap-2 px-5">
-        <div className="flex items-center justify-between gap-3">
+    <Card className={cn("min-h-20 justify-center rounded-3xl bg-white py-4 shadow-sm ring-0", className)}>
+      <CardContent className="flex flex-col gap-2 px-4">
+        <div className="flex items-center justify-between gap-2">
           <Label htmlFor="hands-free" className="flex flex-col items-start gap-0.5">
             <span className="text-base font-bold text-slate-800">핸즈프리 모드</span>
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal break-keep text-slate-500">
               {supported
                 ? "\"오케이 배달\"로 말해서 바로 저장"
                 : "이 브라우저는 핸즈프리를 지원하지 않습니다"}

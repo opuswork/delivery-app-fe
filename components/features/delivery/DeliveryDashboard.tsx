@@ -16,6 +16,7 @@ import { RecordingInstructions } from "@/components/features/recording/Recording
 import { AccountFooter } from "@/components/layout/AccountFooter";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { useMonthlyDeliveries } from "@/hooks/useMonthlyDeliveries";
+import { DEFAULT_BADGE_COLOR } from "@/lib/constants/delivery";
 import { formatDateKeyKo, fromDateKey, startOfMonth, toDateKey, toMonthKey } from "@/lib/date";
 import { parseDeliveryTranscript } from "@/lib/speech/parse-delivery";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
@@ -34,13 +35,13 @@ export function DeliveryDashboard() {
   const draftSeq = useRef(0);
   const deliveries = useMonthlyDeliveries(month);
   const selectedKey = toDateKey(selectedDate);
-  /** 납품처 of this month → its latest 납품종류 (records are in date order). */
+  /** 납품처 of this month → its latest badge colour (records are in date order). */
   const knownCompanies = useMemo<KnownCompanies>(() => {
-    const companies = new Map<string, DeliveryRecord["delivery_type"]>();
+    const companies = new Map<string, string>();
     for (const record of [...deliveries.byDate.values()].flat()) {
       if (!record.company_name) continue;
       const known = companies.get(record.company_name);
-      companies.set(record.company_name, record.delivery_type || known || "");
+      companies.set(record.company_name, record.badge_color || known || "");
     }
     return companies;
   }, [deliveries.byDate]);
@@ -58,10 +59,14 @@ export function DeliveryDashboard() {
     delivery_number,
     delivery_date,
     company_name,
-    delivery_type,
+    badge_color,
     memo,
   }: DeliveryRecord) =>
-    openDraft({ delivery_date, company_name, delivery_type, memo }, null, delivery_number);
+    openDraft(
+      { delivery_date, company_name, badge_color: badge_color || DEFAULT_BADGE_COLOR, memo },
+      null,
+      delivery_number,
+    );
 
   const handleRecorded = useCallback(
     (result: RecordingResult) => {
@@ -82,7 +87,12 @@ export function DeliveryDashboard() {
     (date: Date) => {
       setSelectedDate(date);
       openDraft(
-        { delivery_date: toDateKey(date), company_name: "", delivery_type: "", memo: "" },
+        {
+          delivery_date: toDateKey(date),
+          company_name: "",
+          badge_color: DEFAULT_BADGE_COLOR,
+          memo: "",
+        },
         null,
       );
     },
@@ -166,6 +176,7 @@ export function DeliveryDashboard() {
         onClose={() => setDraft(null)}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
+        knownCompanies={knownCompanies}
       />
       <RepeatDeliverySheet
         source={repeatSource}

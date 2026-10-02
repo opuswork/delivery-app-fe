@@ -1,5 +1,3 @@
-import type { DeliveryType } from "@/lib/constants/delivery";
-
 /** Mirrors the backend DeliveryRecord contract (field names are the business names). */
 export interface DeliveryRecord {
   delivery_number: number;
@@ -7,8 +5,8 @@ export interface DeliveryRecord {
   delivery_date: string;
   /** 납품처, e.g. "홈플러스" (empty for records saved before it was its own field) */
   company_name: string;
-  /** 납품종류 (empty for records saved before it existed) */
-  delivery_type: DeliveryType | "";
+  /** 납품처 badge colour, #RRGGBB ("" = the default colour) */
+  badge_color: string;
   /** Free text, may be empty, e.g. "1급진간장 1.8리터 10통" */
   memo: string;
 }
@@ -26,7 +24,7 @@ export interface RepeatDeliveryResult {
   skipped_dates: string[];
 }
 
-/** 선택수정: the same 납품처 / 납품종류 / 메모 written to several saved deliveries. */
+/** 선택수정: the same 납품처 / badge colour / 메모 written to several saved deliveries. */
 export interface BulkUpdateDeliveryRequest extends Omit<DeliveryRequest, "delivery_date"> {
   delivery_numbers: number[];
 }
@@ -34,5 +32,5 @@ export interface BulkUpdateDeliveryRequest extends Omit<DeliveryRequest, "delive
 /** Delivery records keyed by their yyyy-mm-dd delivery date. */
 export type DeliveriesByDate = ReadonlyMap<string, DeliveryRecord[]>;
 
-/** 납품처 seen before → the 납품종류 last used with it (for voice entry). */
-export type KnownCompanies = ReadonlyMap<string, DeliveryType | "">;
+/** 납품처 seen before → the badge colour last used with it. */
+export type KnownCompanies = ReadonlyMap<string, string>;

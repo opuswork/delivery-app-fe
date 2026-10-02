@@ -16,7 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { repeatDelivery } from "@/lib/api/deliveries";
-import { deliveryTypeColor } from "@/lib/constants/delivery";
+import { badgeColorOf } from "@/lib/constants/delivery";
 import {
   addDays,
   formatDateKeyKo,
@@ -136,7 +136,7 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
     try {
       const result = await repeatDelivery({
         company_name: source.company_name,
-        delivery_type: source.delivery_type,
+        badge_color: source.badge_color,
         memo: source.memo,
         delivery_dates: selected.map(toDateKey).sort(),
       });
@@ -148,18 +148,15 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
   };
 
   const tooMany = selected.length > MAX_REPEAT_DATES;
-  // Records saved before 납품종류 existed must be edited first (the API requires it).
-  const untyped = source.delivery_type === "";
 
   return (
     <div className="flex max-h-[70dvh] flex-col gap-4 overflow-y-auto pb-1">
       <div className="flex items-center gap-2 rounded-xl bg-brand-lavender px-3 py-2">
         <span
-          className="rounded-md px-1.5 py-0.5 text-xs font-bold text-white"
-          style={{ backgroundColor: deliveryTypeColor(source.delivery_type) }}
-        >
-          {source.delivery_type || "종류 없음"}
-        </span>
+          aria-hidden
+          className="size-3 shrink-0 rounded-full"
+          style={{ backgroundColor: badgeColorOf(source) }}
+        />
         <span className="min-w-0 truncate font-bold text-slate-800">
           {source.company_name || "배달"}
         </span>
@@ -240,10 +237,6 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
           classNames={{ root: "w-full" }}
         />
       </div>
-
-      {untyped ? (
-        <FieldError>납품종류가 없는 배달입니다. 먼저 수정에서 납품종류를 선택해 주세요.</FieldError>
-      ) : null}
       {tooMany ? (
         <FieldError>한 번에 {MAX_REPEAT_DATES}개 날짜까지 반복할 수 있습니다.</FieldError>
       ) : null}
@@ -256,7 +249,7 @@ function RepeatForm({ source, onCancel, onRepeated }: RepeatFormProps) {
         <Button
           type="button"
           size="lg"
-          disabled={submitting || selected.length === 0 || tooMany || untyped}
+          disabled={submitting || selected.length === 0 || tooMany}
           onClick={submit}
           className="min-w-20 bg-brand-violet text-white hover:bg-brand-violet/90"
         >

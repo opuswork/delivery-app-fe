@@ -1,16 +1,16 @@
 import { Badge } from "@/components/ui/badge";
-import { deliveryTypeColor } from "@/lib/constants/delivery";
+import { badgeColorOf, badgeTextColor } from "@/lib/constants/delivery";
 import type { DeliveryRecord } from "@/types/delivery";
 
 /** Badges that fit in a day cell; the rest are summed up as "+N". */
 const MAX_BADGES = 2;
 
-/** 납품처 in its 납품종류 colour (신선유통 on blue for 런, …). */
+/** 납품처 in the badge colour chosen for the delivery. */
 export function DeliveryBadge({ record }: { record: DeliveryRecord }) {
   return (
     <Badge
-      className="h-5 w-full max-w-full justify-center rounded-md px-1 text-[11px] font-bold text-white"
-      style={{ backgroundColor: deliveryTypeColor(record.delivery_type) }}
+      className="h-5 w-full max-w-full justify-center rounded-md px-1 text-[11px] font-bold"
+      style={{ backgroundColor: badgeColorOf(record), color: badgeTextColor(badgeColorOf(record)) }}
     >
       <span className="truncate">{record.company_name || "배달"}</span>
     </Badge>

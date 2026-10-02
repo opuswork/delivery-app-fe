@@ -9,7 +9,7 @@ import {
   BottomSheetTitle,
 } from "@/components/ui/bottom-sheet";
 import type { DeliveryFormValues } from "@/lib/validation/delivery";
-import type { DeliveryRecord } from "@/types/delivery";
+import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 
 export interface DeliveryDraft {
   /** Changes per draft so the form remounts with fresh default values. */
@@ -37,6 +37,7 @@ interface DeliveryConfirmDialogProps {
   onClose: () => void;
   onSaved: (record: DeliveryRecord) => void;
   onDeleted: () => void;
+  knownCompanies: KnownCompanies;
 }
 
 /**
@@ -48,6 +49,7 @@ export function DeliveryConfirmDialog({
   onClose,
   onSaved,
   onDeleted,
+  knownCompanies,
 }: DeliveryConfirmDialogProps) {
   return (
     <BottomSheet open={draft !== null} onOpenChange={(open) => !open && onClose()}>
@@ -64,6 +66,7 @@ export function DeliveryConfirmDialog({
             onCancel={onClose}
             onSaved={onSaved}
             onDeleted={onDeleted}
+            knownCompanies={knownCompanies}
           />
         ) : null}
       </BottomSheetContent>

@@ -1,24 +1,30 @@
 import { MicIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface RecordingStartButtonProps {
   disabled?: boolean;
   onStart: () => void;
+  className?: string;
 }
 
-export function RecordingStartButton({ disabled, onStart }: RecordingStartButtonProps) {
+/** White card-sized button, the same size as the 핸즈프리 모드 card next to it. */
+export function RecordingStartButton({ disabled, onStart, className }: RecordingStartButtonProps) {
   return (
     <Button
       variant="ghost"
       disabled={disabled}
       onClick={onStart}
-      className="h-24 w-full gap-6 rounded-2xl text-3xl font-bold tracking-[0.12em] text-slate-900 hover:bg-brand-lavender"
+      className={cn(
+        "h-full min-h-20 w-full gap-2.5 rounded-3xl bg-white px-3 py-4 text-xl font-bold text-slate-900 shadow-sm hover:bg-brand-lavender",
+        className,
+      )}
     >
-      <span className="flex size-16 items-center justify-center rounded-full bg-brand-record text-white shadow-md">
-        <MicIcon className="size-8" aria-hidden />
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-record text-white shadow-md">
+        <MicIcon className="size-6" aria-hidden />
       </span>
-      배달 녹음 시작
+      녹음 시작
     </Button>
   );
 }
