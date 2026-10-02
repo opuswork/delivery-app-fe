@@ -5,6 +5,7 @@ import { RecordingNotice } from "@/components/features/recording/RecordingNotice
 import { RecordingStartButton } from "@/components/features/recording/RecordingStartButton";
 import { RecordingToolbar } from "@/components/features/recording/RecordingToolbar";
 import { SectionFrame } from "@/components/features/recording/SectionFrame";
+import { cn } from "@/lib/utils";
 import { useHandsFreeAssistant } from "@/hooks/useHandsFreeAssistant";
 import { useSpeechRecorder } from "@/hooks/useSpeechRecorder";
 import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
@@ -24,7 +25,8 @@ const UNSUPPORTED_MESSAGE =
 
 /**
  * Button recording (with confirmation) and hands-free mode share one
- * microphone, so only one of them runs at a time.
+ * microphone, so only one of them runs at a time. Side by side while idle;
+ * an active recording (or a notice) takes the full width.
  */
 export function RecordingControl({
   onRecorded,
@@ -42,14 +44,17 @@ export function RecordingControl({
     recorder.start();
   };
 
+  const wide = status !== "idle";
+
   return (
-    <>
+    <div className="grid grid-cols-2 gap-3">
       <RecordingCard
         recorder={recorder}
         onStart={startRecording}
         onManualEntry={onManualEntry}
       />
       <HandsFreeToggle
+        className={cn(wide && "col-span-2")}
         supported={handsFree.supported}
         status={handsFree.status}
         liveText={handsFree.liveText}
@@ -57,7 +62,7 @@ export function RecordingControl({
         disabled={recorderBusy}
         onToggle={(enabled) => (enabled ? handsFree.enable() : handsFree.disable())}
       />
-    </>
+    </div>
   );
 }
 
@@ -73,7 +78,7 @@ function RecordingCard({ recorder, onStart, onManualEntry }: RecordingCardProps)
 
   if (status === "unsupported" || status === "error") {
     return (
-      <SectionFrame>
+      <SectionFrame className="col-span-2">
         <RecordingNotice
           message={status === "error" ? (recorder.error ?? "") : UNSUPPORTED_MESSAGE}
           onRetry={status === "error" ? recorder.dismissError : undefined}
@@ -84,16 +89,12 @@ function RecordingCard({ recorder, onStart, onManualEntry }: RecordingCardProps)
   }
 
   if (status === "idle") {
-    return (
-      <SectionFrame contentClassName="px-2">
-        <RecordingStartButton onStart={onStart} />
-      </SectionFrame>
-    );
+    return <RecordingStartButton onStart={onStart} />;
   }
 
   return (
-    <SectionFrame contentClassName="flex flex-col items-center gap-2 py-1">
-      <h2 className="text-xl font-bold tracking-[0.12em] text-slate-900">배달 녹음 시작</h2>
+    <SectionFrame className="col-span-2" contentClassName="flex flex-col items-center gap-2 py-1">
+      <h2 className="text-xl font-bold tracking-[0.12em] text-slate-900">녹음 시작</h2>
       <RecordingToolbar
         status={status}
         elapsedMs={recorder.elapsedMs}

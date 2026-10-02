@@ -4,9 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { BadgeColorPicker } from "@/components/features/delivery/BadgeColorPicker";
 import { DeleteDeliveryButton } from "@/components/features/delivery/DeleteDeliveryButton";
 import { DeliveryTextField } from "@/components/features/delivery/DeliveryTextField";
-import { DeliveryTypeSelect } from "@/components/features/delivery/DeliveryTypeSelect";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,7 +18,7 @@ import {
   type DeliveryFormValues,
   type ValidDelivery,
 } from "@/lib/validation/delivery";
-import type { DeliveryRecord } from "@/types/delivery";
+import type { DeliveryRecord, KnownCompanies } from "@/types/delivery";
 
 interface DeliveryFormProps {
   defaultValues: DeliveryFormValues;
@@ -27,27 +27,36 @@ interface DeliveryFormProps {
   onCancel: () => void;
   onSaved: (record: DeliveryRecord) => void;
   onDeleted?: () => void;
+  /** Typing a known 납품처 picks its last colour (until a colour is chosen by hand). */
+  knownCompanies?: KnownCompanies;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-/** 납품일 + 납품처 + 납품종류 + 메모, used for voice confirmation, manual entry and editing. */
+/** 납품일 + 납품처 (with its badge colour) + 메모, used for voice confirmation, manual entry and editing. */
 export function DeliveryForm({
   defaultValues,
   editDeliveryNumber,
   onCancel,
   onSaved,
   onDeleted,
+  knownCompanies,
 }: DeliveryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { register, handleSubmit, formState, control } = useForm<DeliveryFormValues, unknown, ValidDelivery>({
+  const { register, handleSubmit, formState, control, setValue } = useForm<DeliveryFormValues, unknown, ValidDelivery>({
     resolver: zodResolver(deliverySchema),
     defaultValues,
   });
   const { errors, isSubmitting } = formState;
-  const deliveryType = useWatch({ control, name: "delivery_type" });
+  const badgeColor = useWatch({ control, name: "badge_color" });
+  const [colorPickedByHand, setColorPickedByHand] = useState(false);
+
+  const pickColor = (color: string) => {
+    setColorPickedByHand(true);
+    setValue("badge_color", color, { shouldDirty: true });
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -89,13 +98,13 @@ export function DeliveryForm({
           placeholder="홈플러스"
           maxLength={100}
           error={errors.company_name?.message}
-          {...register("company_name")}
-        />
-        <DeliveryTypeSelect
-          id="delivery_type"
-          selected={deliveryType}
-          error={errors.delivery_type?.message}
-          {...register("delivery_type")}
+          endAdornment={<BadgeColorPicker value={badgeColor} onChange={pickColor} />}
+          {...register("company_name", {
+            onChange: (event: { target: { value: string } }) => {
+              const known = knownCompanies?.get(event.target.value.trim());
+              if (known && !colorPickedByHand) setValue("badge_color", known);
+            },
+          })}
         />
         <Field data-invalid={Boolean(errors.memo)} className="gap-1.5">
           <FieldLabel htmlFor="memo" className="text-sm font-medium text-slate-700">

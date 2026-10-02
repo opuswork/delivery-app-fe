@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ko } from "react-day-picker/locale";
 import { useForm, useWatch } from "react-hook-form";
 
+import { BadgeColorPicker } from "@/components/features/delivery/BadgeColorPicker";
 import { DeliveryTextField } from "@/components/features/delivery/DeliveryTextField";
-import { DeliveryTypeSelect } from "@/components/features/delivery/DeliveryTypeSelect";
 import {
   BottomSheet,
   BottomSheetContent,
@@ -20,6 +20,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { bulkUpdateDeliveries, listSameCompanyDeliveries } from "@/lib/api/deliveries";
+import { badgeColorOf } from "@/lib/constants/delivery";
 import { fromDateKey, groupByDeliveryDate, toDateKey } from "@/lib/date";
 import {
   deliveryContentSchema,
@@ -32,7 +33,7 @@ import type { DeliveryRecord } from "@/types/delivery";
 function sameContent(a: DeliveryRecord, b: DeliveryRecord): boolean {
   return (
     a.company_name === b.company_name &&
-    a.delivery_type === b.delivery_type &&
+    a.badge_color === b.badge_color &&
     a.memo === b.memo
   );
 }
@@ -53,7 +54,7 @@ function BulkEditForm({ source, onCancel, onSaved }: BulkEditFormProps) {
   /** null until the user taps a date: then the identical deliveries are selected. */
   const [picked, setPicked] = useState<Date[] | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { register, handleSubmit, formState, control } = useForm<
+  const { register, handleSubmit, formState, control, setValue } = useForm<
     DeliveryContentValues,
     unknown,
     ValidDeliveryContent
@@ -61,12 +62,12 @@ function BulkEditForm({ source, onCancel, onSaved }: BulkEditFormProps) {
     resolver: zodResolver(deliveryContentSchema),
     defaultValues: {
       company_name: source.company_name,
-      delivery_type: source.delivery_type,
+      badge_color: badgeColorOf(source),
       memo: source.memo,
     },
   });
   const { errors, isSubmitting } = formState;
-  const deliveryType = useWatch({ control, name: "delivery_type" });
+  const badgeColor = useWatch({ control, name: "badge_color" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -171,13 +172,13 @@ function BulkEditForm({ source, onCancel, onSaved }: BulkEditFormProps) {
           label="납품처"
           maxLength={100}
           error={errors.company_name?.message}
+          endAdornment={
+            <BadgeColorPicker
+              value={badgeColor}
+              onChange={(color) => setValue("badge_color", color, { shouldDirty: true })}
+            />
+          }
           {...register("company_name")}
-        />
-        <DeliveryTypeSelect
-          id="bulk_delivery_type"
-          selected={deliveryType}
-          error={errors.delivery_type?.message}
-          {...register("delivery_type")}
         />
         <Field data-invalid={Boolean(errors.memo)} className="gap-1.5">
           <FieldLabel htmlFor="bulk_memo" className="text-sm font-medium text-slate-700">

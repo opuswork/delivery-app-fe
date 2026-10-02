@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { deliveryTypeColor } from "@/lib/constants/delivery";
+import { badgeColorOf } from "@/lib/constants/delivery";
 import { formatDateKeyKo } from "@/lib/date";
 import type { DeliveryRecord } from "@/types/delivery";
 
@@ -21,7 +21,7 @@ interface DayDeliveryListProps {
   onBulkEdit: (record: DeliveryRecord) => void;
 }
 
-/** The recorded deliveries (납품처 + 납품종류 + 메모) for the selected calendar day. */
+/** The recorded deliveries (납품처 + 메모) for the selected calendar day. */
 export function DayDeliveryList({
   dateKey,
   records,
@@ -52,21 +52,16 @@ export function DayDeliveryList({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 pt-1">
                     {/* Records saved before 납품처 was its own field have it inside the memo. */}
-                    {record.company_name || record.delivery_type ? (
-                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {record.company_name ? (
-                          <span className="text-base font-bold break-words text-slate-800">
-                            {record.company_name}
-                          </span>
-                        ) : null}
-                        {record.delivery_type ? (
-                          <span
-                            className="rounded-md px-1.5 py-0.5 text-xs font-bold text-white"
-                            style={{ backgroundColor: deliveryTypeColor(record.delivery_type) }}
-                          >
-                            {record.delivery_type}
-                          </span>
-                        ) : null}
+                    {record.company_name ? (
+                      <p className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className="size-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: badgeColorOf(record) }}
+                        />
+                        <span className="text-base font-bold break-words text-slate-800">
+                          {record.company_name}
+                        </span>
                       </p>
                     ) : null}
                     {record.memo ? (
