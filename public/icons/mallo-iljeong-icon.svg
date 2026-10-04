@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1280" viewBox="0 0 1280 1280" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">말로일정</title>
+  <desc id="desc">Purple calendar with a blue microphone on a transparent background.</desc>
+  <defs>
+    <linearGradient id="purple" x1="180" y1="240" x2="1090" y2="1140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7124FF"/>
+      <stop offset="1" stop-color="#5612F4"/>
+    </linearGradient>
+    <linearGradient id="tabs" x1="350" y1="130" x2="900" y2="345" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#641BFA"/>
+      <stop offset="1" stop-color="#5513E9"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="490" y1="490" x2="750" y2="1050" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1999FF"/>
+      <stop offset="1" stop-color="#0060FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="150" y="242" width="956" height="905" rx="152" fill="url(#purple)"/>
+  <rect x="335" y="218" width="145" height="146" rx="64" fill="white"/>
+  <rect x="771" y="218" width="149" height="146" rx="64" fill="white"/>
+  <rect x="348" y="129" width="120" height="216" rx="60" fill="url(#tabs)"/>
+  <rect x="785" y="129" width="122" height="216" rx="61" fill="url(#tabs)"/>
+  <rect x="213" y="438" width="830" height="644" rx="65" fill="white"/>
+  <g fill="url(#blue)">
+    <rect x="510" y="488" width="234" height="365" rx="117"/>
+    <path d="M410 731 A33 33 0 0 1 476 731 C476 831 534 883 627 883 C720 883 778 831 778 731 A33 33 0 0 1 844 731 C844 853 772 929 660 942 V985 H724 A33 33 0 0 1 724 1051 H530 A33 33 0 0 1 530 985 H594 V942 C482 929 410 853 410 731Z"/>
+  </g>
+</svg>
