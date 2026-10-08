@@ -14,7 +14,8 @@ and `lib/speech/tts.ts` use the phone's speech recogniser and TTS instead
 
 | | |
 | --- | --- |
-| App ID / bundle ID | `net.opuscore.malloiljeong` (permanent) |
+| Android package name | `delivery.my.app` (locked by the Play Console app) |
+| iOS bundle ID | `net.opuscore.malloiljeong` (`appId` in `capacitor.config.ts`) |
 | Android upload key | `D:\docker-projects\Delivery-app\mobile-signing\` (not in git, **back it up**) |
 | Icons / splash source | `resources/` → `npx @capacitor/assets generate --iconBackgroundColor '#ffffff' --splashBackgroundColor '#1b3358' --splashBackgroundColorDark '#1b3358'` (then delete the generated `icons/` folder and `public/manifest.webmanifest`) |
 

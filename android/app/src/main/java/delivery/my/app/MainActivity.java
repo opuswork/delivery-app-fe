@@ -1,4 +1,4 @@
-package net.opuscore.malloiljeong;
+package delivery.my.app;
 
 import com.getcapacitor.BridgeActivity;
 
