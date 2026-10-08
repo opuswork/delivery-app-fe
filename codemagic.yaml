@@ -1,0 +1,34 @@
+# iOS store build on Codemagic (macOS cloud), since iOS apps cannot be built on Windows.
+# Setup and release steps: MOBILE.md.
+workflows:
+  ios-release:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # The App Store Connect API key added under Codemagic → Team integrations.
+      app_store_connect: malloiljeong
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: net.opuscore.malloiljeong
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Sync native project (runs pod install)
+        script: npx cap sync ios
+      - name: Use App Store signing
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: cd ios/App && agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build ipa
+        script: xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

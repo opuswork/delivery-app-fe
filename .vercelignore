@@ -1,0 +1,5 @@
+# Native app projects are built locally / in Codemagic, not on Vercel.
+android/
+ios/
+native-shell/
+resources/

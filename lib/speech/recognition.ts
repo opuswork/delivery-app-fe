@@ -1,13 +1,19 @@
 import { SPEECH_LANG } from "@/lib/constants/recording";
+import { isNativeApp } from "@/lib/native/platform";
+import { NativeSpeechRecognition } from "@/lib/speech/native-recognition";
 import type {
   SpeechRecognitionConstructor,
   SpeechRecognitionEventLike,
   SpeechRecognitionLike,
 } from "@/types/speech";
 
-/** Browsers expose the Web Speech API as `SpeechRecognition` or `webkitSpeechRecognition`. */
+/**
+ * Browsers expose the Web Speech API as `SpeechRecognition` or `webkitSpeechRecognition`.
+ * The store app's web view has neither, so it uses the phone's recogniser instead.
+ */
 export function getRecognitionConstructor(): SpeechRecognitionConstructor | null {
   if (typeof window === "undefined") return null;
+  if (isNativeApp()) return NativeSpeechRecognition;
   const w = window as unknown as {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
@@ -39,7 +45,9 @@ export function speechErrorMessage(code: string): string {
   switch (code) {
     case "not-allowed":
     case "service-not-allowed":
-      return "마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.";
+      return isNativeApp()
+        ? "마이크 권한이 필요합니다. 휴대폰 설정에서 말로일정의 마이크와 음성 인식을 허용해 주세요."
+        : "마이크 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.";
     case "audio-capture":
       return "마이크를 찾을 수 없습니다.";
     case "network":

@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "음성배달앱",
-    short_name: "음성배달",
+    name: "말로일정",
+    short_name: "말로일정",
     description: "음성으로 배달을 기록하는 앱",
     lang: "ko",
     start_url: "/",
