@@ -37,7 +37,7 @@ export function CalendarDay({ day, modifiers, className, ...props }: DayButtonPr
         count ? `, 배달 ${count}건: ${records.map((r) => r.company_name || "배달").join(", ")}` : ""
       }`}
       className={cn(
-        "flex h-auto min-h-20 w-full min-w-0 flex-col items-center justify-start gap-0.5 overflow-hidden rounded-xl border-2 border-transparent px-0 pt-1.5 pb-1 hover:bg-brand-lavender",
+        "flex h-auto min-h-16 w-full min-w-0 flex-col items-center justify-start gap-0.5 overflow-hidden rounded-xl border-2 border-transparent px-0 pt-1.5 pb-1 hover:bg-brand-lavender",
         isToday && "border-brand-violet-soft",
         // Room for CalendarCell's "+" button below "오늘".
         modifiers.selected && "bg-brand-lavender",
@@ -48,7 +48,7 @@ export function CalendarDay({ day, modifiers, className, ...props }: DayButtonPr
       <span
         className={cn(
           // Shrinks on narrow screens so seven columns always fit.
-          "text-[clamp(1.125rem,6.2vw,1.5rem)] leading-tight font-bold",
+          "text-[clamp(1rem,5.4vw,1.375rem)] leading-tight font-bold",
           dayNumberColor(day.date.getDay(), key < todayKey),
         )}
       >

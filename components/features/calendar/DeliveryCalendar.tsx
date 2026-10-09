@@ -68,7 +68,7 @@ export function DeliveryCalendar({
               month_grid: "w-full table-fixed border-collapse",
               weekdays: "flex",
               weekday:
-                "min-w-0 flex-1 basis-0 pb-2 text-lg font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
+                "min-w-0 flex-1 basis-0 pb-2 text-base font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
               week: "mt-1 flex w-full",
               day: "relative min-w-0 flex-1 basis-0 px-0 py-0.5 text-center",
               // CalendarDay draws its own today/selected styling.
