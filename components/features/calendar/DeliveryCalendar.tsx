@@ -63,11 +63,14 @@ export function DeliveryCalendar({
             classNames={{
               root: "w-full",
               month_caption: "hidden",
+              // Seven equal columns at any screen width or phone text size:
+              // a long 납품처 badge is cut short instead of widening its column.
+              month_grid: "w-full table-fixed border-collapse",
               weekdays: "flex",
               weekday:
-                "flex-1 pb-2 text-lg font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
+                "min-w-0 flex-1 basis-0 pb-2 text-lg font-bold text-slate-500 first:text-brand-sunday last:text-brand-saturday",
               week: "mt-1 flex w-full",
-              day: "relative flex-1 p-0.5 text-center",
+              day: "relative min-w-0 flex-1 basis-0 px-0 py-0.5 text-center",
               // CalendarDay draws its own today/selected styling.
               today: "",
             }}

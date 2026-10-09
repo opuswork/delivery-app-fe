@@ -18,7 +18,7 @@
         android:includeFontPadding="false"
         android:paddingBottom="1dp"
         android:textColor="@color/widget_text"
-        android:textSize="13sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
 
     <TextView
@@ -39,7 +39,7 @@
         android:layout_height="wrap_content"
         android:includeFontPadding="false"
         android:textColor="@color/widget_text_muted"
-        android:textSize="10sp"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:visibility="gone" />
 </LinearLayout>

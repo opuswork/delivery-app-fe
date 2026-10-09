@@ -9,10 +9,11 @@ const MAX_BADGES = 2;
 export function DeliveryBadge({ record }: { record: DeliveryRecord }) {
   return (
     <Badge
-      className="h-5 w-full max-w-full justify-center rounded-md px-1 text-[11px] font-bold"
+      className="h-auto min-h-5 w-full max-w-full min-w-0 shrink justify-center rounded-md px-px py-0.5 text-[11px] leading-tight font-bold whitespace-normal"
       style={{ backgroundColor: badgeColorOf(record), color: badgeTextColor(badgeColorOf(record)) }}
     >
-      <span className="truncate">{record.company_name || "배달"}</span>
+      {/* A long name wraps onto a second line rather than being cut to one letter. */}
+      <span className="line-clamp-2 min-w-0 break-all">{record.company_name || "배달"}</span>
     </Badge>
   );
 }

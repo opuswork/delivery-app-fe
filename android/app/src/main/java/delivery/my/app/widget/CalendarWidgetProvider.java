@@ -39,9 +39,9 @@ public class CalendarWidgetProvider extends AppWidgetProvider {
     // Heights in dp, matching the layouts, used to decide how many chips fit.
     private static final int FRAME_DP = 8 + 8 + 40 + 22;
     private static final int STATUS_DP = 16;
-    private static final int DAY_NUMBER_DP = 19;
-    private static final int CHIP_DP = 15;
-    private static final int MORE_DP = 12;
+    private static final int DAY_NUMBER_DP = 21;
+    private static final int CHIP_DP = 18;
+    private static final int MORE_DP = 14;
 
     /** Draws every widget again from the cache, then fetches fresh data. */
     public static void refresh(Context context) {
@@ -148,7 +148,7 @@ public class CalendarWidgetProvider extends AppWidgetProvider {
         int daysInMonth = first.getActualMaximum(Calendar.DAY_OF_MONTH);
         int weeks = (leading + daysInMonth + 6) / 7;
 
-        // How many 15dp chips fit under the day number in one row.
+        // How many chips (17dp + 1dp gap) fit under the day number in one row.
         Bundle options = manager.getAppWidgetOptions(id);
         int heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
         if (heightDp == 0) heightDp = 250;
