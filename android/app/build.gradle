@@ -7,9 +7,11 @@ android {
         applicationId "delivery.my.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
+        versionCode 4
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Backend the home-screen widget calls (the site's NEXT_PUBLIC_API_BASE_URL).
+        buildConfigField "String", "WIDGET_API_BASE", '"https://delivery-app-be.onrender.com"'
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -32,7 +34,14 @@ android {
         }
         buildTypes.release.signingConfig signingConfigs.release
     }
+    buildFeatures {
+        buildConfig true
+    }
     buildTypes {
+        debug {
+            // Emulator → the backend running on this computer (npm run start:dev).
+            buildConfigField "String", "WIDGET_API_BASE", '"http://10.0.2.2:4100"'
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -52,6 +61,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Background refresh for the home-screen calendar widget.
+    implementation "androidx.work:work-runtime:2.10.1"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

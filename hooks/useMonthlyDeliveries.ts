@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { listDeliveries } from "@/lib/api/deliveries";
 import { groupByDeliveryDate, toMonthKey } from "@/lib/date";
+import { refreshWidget } from "@/lib/native/widget";
 import type { DeliveryRecord } from "@/types/delivery";
+
+/** The widget is refreshed once when the app opens, then after every change. */
+let widgetRefreshedOnOpen = false;
 
 interface LoadedMonth {
   key: string;
@@ -22,7 +26,14 @@ export function useMonthlyDeliveries(month: Date) {
     const controller = new AbortController();
     const requestKey = `${monthKey}#${version}`;
     listDeliveries(monthKey, controller.signal)
-      .then((records) => setLoaded({ key: requestKey, records, error: null }))
+      .then((records) => {
+        setLoaded({ key: requestKey, records, error: null });
+        // version > 0: reloaded after a save, edit or delete.
+        if (version > 0 || !widgetRefreshedOnOpen) {
+          widgetRefreshedOnOpen = true;
+          refreshWidget();
+        }
+      })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         const message =

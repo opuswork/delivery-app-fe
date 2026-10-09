@@ -19,6 +19,20 @@ and `lib/speech/tts.ts` use the phone's speech recogniser and TTS instead
 | Android upload key | `D:\docker-projects\Delivery-app\mobile-signing\` (not in git, **back it up**) |
 | Icons / splash source | `resources/` → `npx @capacitor/assets generate --iconBackgroundColor '#ffffff' --splashBackgroundColor '#1b3358' --splashBackgroundColorDark '#1b3358'` (then delete the generated `icons/` folder and `public/manifest.webmanifest`) |
 
+## Android home-screen widget
+
+`android/app/src/main/java/delivery/my/app/widget/`: a month calendar like the app's.
+
+- It signs in with the app's device key (read from `CapacitorStorage`, where
+  `@capacitor/preferences` keeps it), so it shows the same account. Until the app has been
+  opened once it says so.
+- `RefreshWorker` (WorkManager) fetches `GET /deliveries?month=` for the months on screen and
+  caches them; drawing only uses the cache. Updates happen every 30 minutes, on ‹ › / today
+  taps, and when the app asks (`refreshWidget()` in `lib/native/widget.ts`, after saves).
+- Release builds call the production API; debug builds call `http://10.0.2.2:4100` (the
+  backend on this computer, as seen from the emulator). See `WIDGET_API_BASE` in
+  `android/app/build.gradle`.
+
 ## Android release (Windows)
 
 Needs JDK 21 and the Android SDK (`%LOCALAPPDATA%\Android\Sdk`).

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">이번 달 납품 일정을 홈 화면에서 봅니다</string>
+    <string name="widget_previous_month">이전 달</string>
+    <string name="widget_next_month">다음 달</string>
+    <string name="widget_add">기록 추가</string>
+    <string name="widget_today">오늘로 이동</string>
+    <string name="widget_open_app_first">말로일정 앱을 한 번 열어 주세요</string>
+    <string name="widget_loading">불러오는 중…</string>
+    <string name="widget_offline">인터넷에 연결되지 않아 저장된 일정을 보여 줍니다</string>
+</resources>
