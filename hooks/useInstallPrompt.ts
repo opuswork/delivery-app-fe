@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import { isNativeApp } from "@/lib/native/platform";
 import type { BeforeInstallPromptEvent } from "@/types/pwa";
 
 const STANDALONE_QUERY = "(display-mode: standalone)";
@@ -12,7 +13,9 @@ function subscribeDisplayMode(onChange: () => void) {
   return () => media.removeEventListener("change", onChange);
 }
 
+/** The store app counts as installed, so it never offers to install the PWA. */
 function isStandalone(): boolean {
+  if (isNativeApp()) return true;
   const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
   return window.matchMedia(STANDALONE_QUERY).matches || iosStandalone === true;
 }

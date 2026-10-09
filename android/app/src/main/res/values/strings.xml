@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">말로일정</string>
+    <string name="title_activity_main">말로일정</string>
+    <string name="package_name">delivery.my.app</string>
+    <string name="custom_url_scheme">delivery.my.app</string>
+</resources>

@@ -12,11 +12,11 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "음성배달앱",
+  title: "말로일정",
   description: "음성으로 배달을 기록하는 앱",
-  applicationName: "음성배달앱",
+  applicationName: "말로일정",
   // iOS "홈 화면에 추가": open full screen with the app's name.
-  appleWebApp: { capable: true, title: "음성배달앱", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "말로일정", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

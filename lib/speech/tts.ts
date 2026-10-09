@@ -1,7 +1,12 @@
-import { SPEECH_LANG } from "@/lib/constants/recording";
+import { TextToSpeech } from "@capacitor-community/text-to-speech";
 
+import { SPEECH_LANG } from "@/lib/constants/recording";
+import { isNativeApp } from "@/lib/native/platform";
+
+/** The store app's web view has no speechSynthesis, so it uses the phone's TTS. */
 export function isSpeechSynthesisSupported(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
+  if (typeof window === "undefined") return false;
+  return isNativeApp() || "speechSynthesis" in window;
 }
 
 function koreanVoice(): SpeechSynthesisVoice | undefined {
@@ -17,13 +22,6 @@ function koreanVoice(): SpeechSynthesisVoice | undefined {
 export function speak(text: string): Promise<void> {
   if (!isSpeechSynthesisSupported()) return Promise.resolve();
   return new Promise((resolve) => {
-    const synth = window.speechSynthesis;
-    synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = SPEECH_LANG;
-    const voice = koreanVoice();
-    if (voice) utterance.voice = voice;
-
     let settled = false;
     const done = () => {
       if (settled) return;
@@ -32,6 +30,18 @@ export function speak(text: string): Promise<void> {
       resolve();
     };
     const timer = window.setTimeout(done, 3000 + text.length * 250);
+
+    if (isNativeApp()) {
+      TextToSpeech.speak({ text, lang: SPEECH_LANG }).then(done, done);
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = SPEECH_LANG;
+    const voice = koreanVoice();
+    if (voice) utterance.voice = voice;
     utterance.onend = done;
     utterance.onerror = done;
     synth.speak(utterance);
@@ -39,15 +49,17 @@ export function speak(text: string): Promise<void> {
 }
 
 export function cancelSpeech(): void {
-  if (isSpeechSynthesisSupported()) window.speechSynthesis.cancel();
+  if (isNativeApp()) void TextToSpeech.stop().catch(() => undefined);
+  else if (isSpeechSynthesisSupported()) window.speechSynthesis.cancel();
 }
 
 /**
  * iOS Safari only allows speech after a user gesture; call this from the
  * tap that enables hands-free mode so later prompts can play.
+ * Native TTS has no such rule.
  */
 export function primeSpeech(): void {
-  if (!isSpeechSynthesisSupported()) return;
+  if (isNativeApp() || !isSpeechSynthesisSupported()) return;
   const utterance = new SpeechSynthesisUtterance("");
   utterance.volume = 0;
   window.speechSynthesis.speak(utterance);

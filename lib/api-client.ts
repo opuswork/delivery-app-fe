@@ -1,4 +1,4 @@
-import { clearToken, getToken } from "@/lib/token";
+import { adminToken, clearToken, getToken } from "@/lib/token";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4100";
@@ -16,8 +16,8 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
-  /** Attach the Bearer token (default true). */
-  auth?: boolean;
+  /** Attach the device's Bearer token (default true), or the admin's ("admin"). */
+  auth?: boolean | "admin";
   signal?: AbortSignal;
 }
 
@@ -39,7 +39,7 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (auth) {
-    const token = getToken();
+    const token = auth === "admin" ? adminToken.get() : getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
@@ -58,9 +58,13 @@ export async function apiRequest<T>(
     throw new ApiError(0, "서버에 연결할 수 없습니다.");
   }
 
-  // An authenticated request rejected with 401 means the session is over;
-  // clearing the token makes AuthGuard redirect to /login.
-  if (res.status === 401 && auth) clearToken();
+  // An authenticated request rejected with 401 means the session is over.
+  // Clearing the device token makes DeviceSession sign in again by itself;
+  // clearing the admin token shows the dashboard's sign-in form.
+  if (res.status === 401 && auth) {
+    if (auth === "admin") adminToken.clear();
+    else clearToken();
+  }
   if (!res.ok) throw new ApiError(res.status, await extractMessage(res));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

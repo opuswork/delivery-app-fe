@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Calendar widget colours, matching the app's calendar (fe/app/globals.css). -->
+<resources>
+    <color name="widget_background">#F7F7FA</color>
+    <color name="widget_divider">#E2E5EC</color>
+    <color name="widget_text">#1E293B</color>
+    <color name="widget_text_muted">#94A3B8</color>
+    <color name="widget_sunday">#F0657F</color>
+    <color name="widget_saturday">#A78BFA</color>
+    <color name="widget_violet">#7C3AED</color>
+    <color name="widget_violet_soft">#C4B5FD</color>
+</resources>

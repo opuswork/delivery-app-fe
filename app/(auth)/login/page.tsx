@@ -1,18 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { AppTitle } from "@/components/features/auth/AppTitle";
-import { LoginCard } from "@/components/features/auth/LoginCard";
-import { InstallAppButton } from "@/components/features/pwa/InstallAppButton";
-import { MobileShell } from "@/components/layout/MobileShell";
-
-export const metadata: Metadata = { title: "로그인 | 음성배달앱" };
-
+/** The app no longer has a login; old links and home-screen shortcuts open the app. */
 export default function LoginPage() {
-  return (
-    <MobileShell variant="navy" className="pt-[22vh] pb-16">
-      <AppTitle />
-      <LoginCard />
-      <InstallAppButton tone="dark" className="mx-auto mt-6" />
-    </MobileShell>
-  );
+  redirect("/");
 }
