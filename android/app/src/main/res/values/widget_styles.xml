@@ -6,13 +6,13 @@
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
         <item name="android:textColor">@color/widget_text</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="WidgetChip">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">14dp</item>
+        <item name="android:layout_height">17dp</item>
         <item name="android:layout_marginTop">1dp</item>
         <item name="android:background">@drawable/widget_chip</item>
         <item name="android:ellipsize">end</item>
@@ -21,7 +21,7 @@
         <item name="android:maxLines">1</item>
         <item name="android:paddingStart">2dp</item>
         <item name="android:paddingEnd">2dp</item>
-        <item name="android:textSize">9.5sp</item>
+        <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:visibility">gone</item>
     </style>

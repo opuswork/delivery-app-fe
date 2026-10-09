@@ -33,7 +33,7 @@
             android:minWidth="56dp"
             android:text="10월"
             android:textColor="@color/widget_text"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold" />
 
         <ImageView
