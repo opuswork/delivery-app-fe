@@ -1,5 +1,5 @@
-import { AuthGuard } from "@/components/layout/AuthGuard";
+import { DeviceSession } from "@/components/layout/DeviceSession";
 
 export default function DeliveryLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGuard>{children}</AuthGuard>;
+  return <DeviceSession>{children}</DeviceSession>;
 }

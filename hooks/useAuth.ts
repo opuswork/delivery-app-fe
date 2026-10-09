@@ -6,15 +6,15 @@ import { getToken, subscribeToken } from "@/lib/token";
 import type { AuthUser } from "@/types/auth";
 
 export interface AuthContextValue {
+  /** This device's account; null until loaded. */
   user: AuthUser | null;
-  logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
-  if (!value) throw new Error("useAuth must be used inside <AuthGuard>");
+  if (!value) throw new Error("useAuth must be used inside <DeviceSession>");
   return value;
 }
 

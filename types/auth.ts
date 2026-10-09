@@ -1,16 +1,16 @@
+/** This device's anonymous account. */
 export interface AuthUser {
   id: number;
-  loginId: string;
+  /** Empty for device accounts. */
   fullName: string;
-  churchName: string;
+  createdAt: string;
 }
 
-export interface LoginRequest {
+export interface TokenResponse {
+  accessToken: string;
+}
+
+export interface AdminLoginRequest {
   loginId: string;
   password: string;
-}
-
-export interface LoginResponse {
-  accessToken: string;
-  user: AuthUser;
 }
